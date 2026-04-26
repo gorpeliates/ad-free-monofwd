@@ -1,0 +1,84 @@
+# DATASET UTILS
+
+from torchvision.datasets import MNIST, FashionMNIST, CIFAR10, CIFAR100 
+from src.experiments import ExperimentConfig
+from torch.utils.data import DataLoader, random_split
+import torchvision.transforms as T
+from typing import Tuple
+import torch
+
+def build_dataloaders(cfg: ExperimentConfig) -> Tuple[DataLoader, DataLoader, DataLoader, int, int]:
+    """
+    Builds train, validation, and test dataloaders based on the provided config.
+    Args:
+        cfg: ExperimentConfig object containing dataset and dataloader parameters.
+    Returns:
+        Tuples containing train, test and validation dataloaders, number of input channels, and number of classes.
+
+    """
+
+    ds = cfg.dataset.lower()
+    transform = T.ToTensor()
+    
+    # in_channels 1 for grayscale, 3 for RGB 
+    if ds == "mnist":
+        train_set = MNIST(cfg.data_root, train=True, download=True, transform=transform)
+        test_set = MNIST(cfg.data_root, train=False, download=True, transform=transform)
+        in_channels, num_classes = 1, 10
+    elif ds == "fashionmnist":
+        train_set = FashionMNIST(cfg.data_root, train=True, download=True, transform=transform)
+        test_set = FashionMNIST(cfg.data_root, train=False, download=True, transform=transform)
+        in_channels, num_classes = 1, 10
+    elif ds == "cifar10":
+        train_set = CIFAR10(cfg.data_root, train=True, download=True, transform=transform)
+        test_set = CIFAR10(cfg.data_root, train=False, download=True, transform=transform)
+        in_channels, num_classes = 3, 10
+    elif ds == "cifar100":
+        train_set = CIFAR100(cfg.data_root, train=True, download=True, transform=transform)
+        test_set = CIFAR100(cfg.data_root, train=False, download=True, transform=transform)
+        in_channels, num_classes = 3, 100
+    else:
+        raise ValueError(f"Unknown dataset: {cfg.dataset}")
+
+    if not 0 <= cfg.val_split < 1:
+        raise ValueError(f"val_split must be in [0, 1), got {cfg.val_split}")
+
+    val_size = int(len(train_set) * cfg.val_split)
+    train_size = len(train_set) - val_size
+    generator = torch.Generator().manual_seed(cfg.seed)
+
+    if val_size > 0:
+        train_set, val_set = random_split(train_set, [train_size, val_size], generator=generator)
+    else:
+        val_set = train_set.__class__(
+            cfg.data_root,
+            train=True,
+            download=True,
+            transform=transform,
+        )
+        val_set.data = val_set.data[:0]
+        if hasattr(val_set, "targets"):
+            val_set.targets = val_set.targets[:0]
+
+    train_loader = DataLoader(
+        train_set,
+        batch_size=cfg.batch_size,
+        shuffle=True,
+        num_workers=cfg.num_workers,
+        pin_memory=True,
+    )
+    val_loader = DataLoader(
+        val_set,
+        batch_size=cfg.batch_size,
+        shuffle=False,
+        num_workers=cfg.num_workers,
+        pin_memory=True,
+    )
+    test_loader = DataLoader(
+        test_set,
+        batch_size=cfg.batch_size,
+        shuffle=False,
+        num_workers=cfg.num_workers,
+        pin_memory=True,
+    )
+    return train_loader, val_loader, test_loader, in_channels, num_classes
