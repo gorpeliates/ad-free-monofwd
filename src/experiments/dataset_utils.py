@@ -1,24 +1,24 @@
-# DATASET UTILS
 
 from torchvision.datasets import MNIST, FashionMNIST, CIFAR10, CIFAR100 
-from src.experiments import ExperimentConfig
+from experiments.config import ExperimentConfig
 from torch.utils.data import DataLoader, random_split
 import torchvision.transforms as T
 from typing import Tuple
-import torch
 
-def build_dataloaders(cfg: ExperimentConfig) -> Tuple[DataLoader, DataLoader, DataLoader, int, int]:
+
+def build_dataloaders(cfg: ExperimentConfig) -> Tuple[DataLoader, DataLoader, int, int]:
     """
-    Builds train, validation, and test dataloaders based on the provided config.
+    Builds train and test dataloaders based on the provided config.
     Args:
         cfg: ExperimentConfig object containing dataset and dataloader parameters.
     Returns:
-        Tuples containing train, test and validation dataloaders, number of input channels, and number of classes.
+        Tuples containing train, test loaders, number of input channels, and number of classes.
 
     """
 
     ds = cfg.dataset.lower()
     transform = T.ToTensor()
+    
     
     # in_channels 1 for grayscale, 3 for RGB 
     if ds == "mnist":
@@ -40,26 +40,6 @@ def build_dataloaders(cfg: ExperimentConfig) -> Tuple[DataLoader, DataLoader, Da
     else:
         raise ValueError(f"Unknown dataset: {cfg.dataset}")
 
-    if not 0 <= cfg.val_split < 1:
-        raise ValueError(f"val_split must be in [0, 1), got {cfg.val_split}")
-
-    val_size = int(len(train_set) * cfg.val_split)
-    train_size = len(train_set) - val_size
-    generator = torch.Generator().manual_seed(cfg.seed)
-
-    if val_size > 0:
-        train_set, val_set = random_split(train_set, [train_size, val_size], generator=generator)
-    else:
-        val_set = train_set.__class__(
-            cfg.data_root,
-            train=True,
-            download=True,
-            transform=transform,
-        )
-        val_set.data = val_set.data[:0]
-        if hasattr(val_set, "targets"):
-            val_set.targets = val_set.targets[:0]
-
     train_loader = DataLoader(
         train_set,
         batch_size=cfg.batch_size,
@@ -67,13 +47,7 @@ def build_dataloaders(cfg: ExperimentConfig) -> Tuple[DataLoader, DataLoader, Da
         num_workers=cfg.num_workers,
         pin_memory=True,
     )
-    val_loader = DataLoader(
-        val_set,
-        batch_size=cfg.batch_size,
-        shuffle=False,
-        num_workers=cfg.num_workers,
-        pin_memory=True,
-    )
+
     test_loader = DataLoader(
         test_set,
         batch_size=cfg.batch_size,
@@ -81,4 +55,5 @@ def build_dataloaders(cfg: ExperimentConfig) -> Tuple[DataLoader, DataLoader, Da
         num_workers=cfg.num_workers,
         pin_memory=True,
     )
-    return train_loader, val_loader, test_loader, in_channels, num_classes
+
+    return train_loader, test_loader, in_channels, num_classes

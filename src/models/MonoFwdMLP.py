@@ -4,7 +4,7 @@ import torch
 from torch import nn
 import torch.nn.functional as F
 from typing import List, Tuple
-
+from experiments.dataset_utils import build_dataloaders
 
 class MonoFwdLinearBlock(nn.Module):
     def __init__(self,in_dim: int, out_dim : int, num_classes: int, activation:str = "relu"):
@@ -105,21 +105,21 @@ def train_MonoFwdMLP_AD_One_Epoch(
     model.to(device)
     model.train()
     total_loss = 0.0
-    correct_predictions = 0
+    total_correct = 0
     total_seen = 0
 
     for x,y in dataloader:
         x : torch.Tensor
         y : torch.Tensor
 
-        x.to(device,non_blocking=True)
-        y.to(device,non_blocking=True)
+        x = x.to(device,non_blocking=True)
+        y = y.to(device,non_blocking=True)
 
         for opt in optimizers:
             opt.zero_grad(set_to_none=True)
         
         losses, logits_per_layer = model.local_losses_logits(x, y)
-
+    
         # updates model weights.
         for loss in losses:
             loss.backward()
@@ -130,33 +130,6 @@ def train_MonoFwdMLP_AD_One_Epoch(
     final_logits = torch.stack(logits_per_layer, dim=0).sum(dim=0)
     total_loss += sum(float(loss.item()) for loss in losses) * x.size(0)
     total_correct += int((final_logits.argmax(dim=1) == y).sum().item())
-    total_seen = 0
+    total_seen += x.size(0)
 
     return total_loss / total_seen, total_correct / total_seen
-
-
-def run_experiment(cfg: ExperimentConfig) -> None:
-    set_seed(cfg.seed)
-    train_loader, test_loader, in_channels, num_classes = build_dataloaders(cfg)
-    model = build_model(cfg, in_channels, num_classes).to(cfg.device)
-
-    # Lazy conv classifiers are created on first forward pass.
-    # Run one batch through local_losses first so all parameters exist.
-    xb, yb = next(iter(train_loader))
-    xb = xb.to(cfg.device)
-    yb = yb.to(cfg.device)
-    _ = model.local_losses(xb, yb)
-
-    optimizers = build_optimizers(model, cfg)
-
-    best_acc = -math.inf
-    for epoch in range(1, cfg.epochs + 1):
-        train_loss, train_acc = train_one_epoch(model, optimizers, train_loader, cfg.device)
-        test_loss, test_acc = evaluate(model, test_loader, cfg.device, cfg.pred_mode)
-        best_acc = max(best_acc, test_acc)
-        print(
-            f"epoch={epoch:03d} "
-            f"train_loss={train_loss:.4f} train_acc={train_acc:.4f} "
-            f"test_loss={test_loss:.4f} test_acc={test_acc:.4f} "
-            f"best_test_acc={best_acc:.4f}"
-        )
