@@ -91,11 +91,12 @@ class MonoFwdMLP(nn.Module):
         raise ValueError(f"Unknown prediction mode: {mode}")
     
 
-def train_MonoFwdMLP_AD_One_Epoch(
+def train_monofwd_mlp_one_epoch_autodiff(
         model: MonoFwdMLP, 
         optimizers: List[torch.optim.Optimizer], 
         dataloader: torch.utils.data.DataLoader, 
-        device:str = "cuda"
+        device:str = "cuda",
+        pred_mode: str = "ff"
     ) -> Tuple[float, float]:
     """
     Train the MonoFwdMLP for one epoch using automatic differentiation for updates in the projection matrices.
@@ -126,10 +127,19 @@ def train_MonoFwdMLP_AD_One_Epoch(
 
         for opt in optimizers:
             opt.step()
-    
-    final_logits = torch.stack(logits_per_layer, dim=0).sum(dim=0)
-    total_loss += sum(float(loss.item()) for loss in losses) * x.size(0)
-    total_correct += int((final_logits.argmax(dim=1) == y).sum().item())
-    total_seen += x.size(0)
+        
+        # no grad for evaluation
+        with torch.no_grad():
+            if pred_mode == "ff":
+                final_goodness = torch.stack(logits_per_layer, dim=0).sum(dim=0)
+            elif pred_mode == "bp":
+                final_goodness = logits_per_layer[-1]
+            else:
+                raise ValueError(f"Unknown pred_mode: {pred_mode}")
+
+            total_loss += sum(loss.item() for loss in losses) * x.size(0)
+            total_correct += int((final_goodness.argmax(dim=1) == y).sum().item())
+            total_seen += x.size(0)
 
     return total_loss / total_seen, total_correct / total_seen
+

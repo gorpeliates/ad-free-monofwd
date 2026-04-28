@@ -83,7 +83,7 @@ def evaluate(model: nn.Module, loader: DataLoader, device: str, pred_mode: str) 
     return total_loss / total_seen, total_correct / total_seen
 
 
-def run_experiment(cfg: ExperimentConfig) -> dict:
+def run_experiment_mlp(cfg: ExperimentConfig) -> dict:
     """
     Runs the training and evaluation loop for the MonoFWD model based on the provided configuration.    
     Returns:
@@ -116,9 +116,7 @@ def run_experiment(cfg: ExperimentConfig) -> dict:
 
     for epoch in range(1,cfg.epochs+1):
         # train the model
-        logger.info(f"[Epoch {epoch}/{cfg.epochs}] Training...")
-        train_loss, train_acc = train_MonoFwdMLP_AD_One_Epoch(model, optimizers, train_loader, device=cfg.device)
-        logger.info(f"[Epoch {epoch}/{cfg.epochs}] Evaluating...")
+        train_loss, train_acc = train_monofwd_mlp_one_epoch_autodiff(model, optimizers, train_loader, device=cfg.device)
         test_loss, test_acc = evaluate(model, test_loader, device=cfg.device, pred_mode=cfg.pred_mode)
         best_test_acc = max(best_test_acc, test_acc)
         
@@ -129,6 +127,7 @@ def run_experiment(cfg: ExperimentConfig) -> dict:
         metrics['test_accs'].append(test_acc)
 
         logger.info(
+            f"[Epoch {epoch}/{cfg.epochs}]"
             f"epoch={epoch:03d} "
             f"train_loss={train_loss:.4f} train_acc={train_acc:.4f} "
             f"test_loss={test_loss:.4f} test_acc={test_acc:.4f} "

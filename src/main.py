@@ -4,7 +4,7 @@ import numpy as np
 import torch
 
 from experiments.config import ExperimentConfig
-from experiments.experiment_utils import run_experiment
+from experiments.experiment_utils import run_experiment_mlp
 
 
 import json
@@ -29,7 +29,7 @@ def parse_args() -> ExperimentConfig:
 
 if __name__ == "__main__":
     config = parse_args()
-    history = run_experiment(config)
+    history = run_experiment_mlp(config)
     
     
     results_dir = Path("results")
