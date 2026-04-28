@@ -19,6 +19,17 @@ def build_dataloaders(cfg: ExperimentConfig) -> Tuple[DataLoader, DataLoader, in
     ds = cfg.dataset.lower()
     transform = T.ToTensor()
     
+    if ds == "cifar10":
+        transform = T.Compose([
+            T.ToTensor(),
+            T.Normalize((0.4914, 0.4822, 0.4465), (0.2470, 0.2435, 0.2616)),
+        ])
+    elif ds == "cifar100":
+        transform = T.Compose([
+            T.ToTensor(),
+            T.Normalize((0.5071, 0.4867, 0.4408), (0.2675, 0.2565, 0.2761)),
+        ])
+
     
     # in_channels 1 for grayscale, 3 for RGB 
     if ds == "mnist":
