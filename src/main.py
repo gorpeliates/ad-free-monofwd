@@ -15,7 +15,7 @@ from pathlib import Path
 def parse_args() -> ExperimentConfig:
     parser = argparse.ArgumentParser(description="MonoFWD")
     parser.add_argument("--dataset", type=str, default="mnist", choices=["mnist", "fashionmnist", "cifar10", "cifar100"])
-    parser.add_argument("--model", type=str, default="mlp", choices=["mlp"])
+    parser.add_argument("--model", type=str, default="mlp", choices=["mlp", "cnn"])
     parser.add_argument("--pred_mode", type=str, default="ff", choices=["ff", "bp"])
     parser.add_argument("--batch_size", type=int, default=128)
     parser.add_argument("--epochs", type=int, default=100)
@@ -29,8 +29,14 @@ def parse_args() -> ExperimentConfig:
 
 if __name__ == "__main__":
     config = parse_args()
-    history = run_experiment_mlp(config)
-    
+        
+    match config.model:
+        case "mlp":
+            history = run_experiment_mlp(config)
+        # case "cnn":
+        #     history = run_experiment_cnn(config)
+        case _:
+            raise ValueError(f"Unknown model type: {config.model}")
     
     results_dir = Path("results")
     results_dir.mkdir(exist_ok=True)

@@ -14,4 +14,4 @@ class ExperimentConfig:
     seed: int = 42
     data_root: str = "./data"
     num_workers: int = 2
-    activation: str = "relu"
+    activation: str = "relu" # relu | tanh 

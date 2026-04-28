@@ -37,7 +37,7 @@ class MonoFwdMLP(nn.Module):
         )
         self.num_classes = num_classes
     
-    def local_losses_logits(self, x:torch.Tensor, y:torch.Tensor):
+    def local_losses_logits(self, x:torch.Tensor, y:torch.Tensor) ->  Tuple[List[torch.Tensor], List[torch.Tensor]]:
         """
         Returns the local losses for each block.
         The loss for each block is the cross-entropy loss between the goodness scores and the true labels,
@@ -46,7 +46,10 @@ class MonoFwdMLP(nn.Module):
         The activations are detached to prevent gradients from flowing back through the previous blocks,
         which allows each block to be trained independently.
 
-        
+        Returns:
+            losses: List of local losses for each block.
+            logits: List of goodness scores (logits) for each block.
+
         """
         
         if x.dim() > 2:
@@ -116,18 +119,19 @@ def train_monofwd_mlp_one_epoch_autodiff(
         x = x.to(device,non_blocking=True)
         y = y.to(device,non_blocking=True)
 
+
         for opt in optimizers:
             opt.zero_grad(set_to_none=True)
         
         losses, logits_per_layer = model.local_losses_logits(x, y)
-    
+
         # updates model weights.
         for loss in losses:
             loss.backward()
 
         for opt in optimizers:
             opt.step()
-        
+
         # no grad for evaluation
         with torch.no_grad():
             if pred_mode == "ff":
