@@ -8,14 +8,19 @@ from torch.utils.data import DataLoader
 
 from experiments.config import ExperimentConfig
 from experiments.logging_utils import get_logger
+from models.cnn.BPCNN import BPCNN
 from models.cnn.MonoFwdCNN import MonoFwdCNN
-from models.mlp.BPMLP import BPMLP, train_bp_mlp_one_epoch
+from models.mlp.BPMLP import BPMLP
 from models.mlp.MonoFwdMLP import MonoFwdMLP
 
+BPModel = BPMLP | BPCNN
+MonoFwdModel = MonoFwdMLP | MonoFwdCNN
 logger = get_logger(__name__)
 
+# region Helpers
 
-def block_parameter_groups(model: MonoFwdMLP | MonoFwdCNN) -> List[List[nn.Parameter]]:
+
+def block_parameter_groups(model: MonoFwdModel) -> List[List[nn.Parameter]]:
     groups: List[List[nn.Parameter]] = []
     for block in model.blocks:
         groups.append(list(block.parameters()))
@@ -23,7 +28,7 @@ def block_parameter_groups(model: MonoFwdMLP | MonoFwdCNN) -> List[List[nn.Param
 
 
 def build_optimizers(
-    model: MonoFwdMLP | MonoFwdCNN, cfg: ExperimentConfig
+    model: MonoFwdModel, cfg: ExperimentConfig
 ) -> List[torch.optim.Optimizer]:
     opts = []
     for params in block_parameter_groups(model):
@@ -31,8 +36,18 @@ def build_optimizers(
     return opts
 
 
+def early_stopping_improved(
+    best_loss: float, current_loss: float, min_delta: float
+) -> bool:
+    return current_loss < best_loss - min_delta
+
+
+# endregion
+
+
+# region MonoFWD Training
 def train_monofwd_one_epoch_autodiff(
-    model: MonoFwdMLP | MonoFwdCNN,
+    model: MonoFwdModel,
     optimizers: List[torch.optim.Optimizer],
     dataloader: DataLoader,
     device: str,
@@ -95,7 +110,7 @@ def train_monofwd_one_epoch_autodiff(
 
 @torch.no_grad()
 def evaluate_monofwd(
-    model: MonoFwdMLP | MonoFwdCNN,
+    model: MonoFwdModel,
     loader: DataLoader,
     device: str,
 ) -> Tuple[float, float, float, float]:
@@ -128,38 +143,8 @@ def evaluate_monofwd(
     )
 
 
-@torch.no_grad()
-def evaluate_bp(
-    model: BPMLP,
-    loader: DataLoader,
-    device: str,
-) -> Tuple[float, float]:
-    model.eval()
-    total_loss = 0.0
-    total_correct = 0
-    total_seen = 0
-
-    for x, y in loader:
-        x = x.to(device, non_blocking=True)
-        y = y.to(device, non_blocking=True)
-
-        logits = model(x)
-        loss = F.cross_entropy(logits, y)
-        total_loss += float(loss.item()) * x.size(0)
-        total_correct += int((logits.argmax(dim=1) == y).sum().item())
-        total_seen += x.size(0)
-
-    return total_loss / total_seen, total_correct / total_seen
-
-
-def early_stopping_improved(
-    best_loss: float, current_loss: float, min_delta: float
-) -> bool:
-    return current_loss < best_loss - min_delta
-
-
 def run_monofwd_training(
-    model: MonoFwdMLP | MonoFwdCNN,
+    model: MonoFwdModel,
     train_loader: DataLoader,
     val_loader: DataLoader,
     test_loader: DataLoader,
@@ -259,8 +244,71 @@ def run_monofwd_training(
     return metrics
 
 
+# endregion
+
+
+# region BP Training
+def train_bp_one_epoch(
+    model: BPModel,
+    optimizer: torch.optim.Optimizer,
+    dataloader: DataLoader,
+    device: str,
+) -> Tuple[float, float]:
+    """
+    Train any standard backprop model for one epoch.
+    Returns:
+      total_loss, acc
+    """
+    model.train()
+    total_loss = 0.0
+    total_correct = 0
+    total_seen = 0
+
+    for x, y in dataloader:
+        x = x.to(device, non_blocking=True)
+        y = y.to(device, non_blocking=True)
+
+        optimizer.zero_grad(set_to_none=True)
+
+        logits = model(x)
+        loss = F.cross_entropy(logits, y)
+
+        loss.backward()
+        optimizer.step()
+
+        total_loss += float(loss.item()) * x.size(0)
+        total_correct += int((logits.argmax(dim=1) == y).sum().item())
+        total_seen += x.size(0)
+
+    return total_loss / total_seen, total_correct / total_seen
+
+
+@torch.no_grad()
+def evaluate_bp(
+    model: BPModel,
+    loader: DataLoader,
+    device: str,
+) -> Tuple[float, float]:
+    model.eval()
+    total_loss = 0.0
+    total_correct = 0
+    total_seen = 0
+
+    for x, y in loader:
+        x = x.to(device, non_blocking=True)
+        y = y.to(device, non_blocking=True)
+
+        logits = model(x)
+        loss = F.cross_entropy(logits, y)
+        total_loss += float(loss.item()) * x.size(0)
+        total_correct += int((logits.argmax(dim=1) == y).sum().item())
+        total_seen += x.size(0)
+
+    return total_loss / total_seen, total_correct / total_seen
+
+
 def run_bp_training(
-    model: BPMLP,
+    model: BPModel,
     train_loader: DataLoader,
     val_loader: DataLoader,
     test_loader: DataLoader,
@@ -297,7 +345,7 @@ def run_bp_training(
     }
 
     for epoch in range(1, cfg.epochs + 1):
-        train_loss, train_acc = train_bp_mlp_one_epoch(
+        train_loss, train_acc = train_bp_one_epoch(
             model, optimizer, train_loader, device=cfg.device
         )
         val_loss, val_acc = evaluate_bp(model, val_loader, device=cfg.device)
@@ -336,3 +384,6 @@ def run_bp_training(
     metrics["bp"]["test_losses"].append(test_loss)
     metrics["bp"]["test_accs"].append(test_acc)
     return metrics
+
+
+# endregion
