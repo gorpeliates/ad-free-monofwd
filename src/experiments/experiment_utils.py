@@ -1,4 +1,3 @@
-
 import torch
 from typing import Tuple, List
 from torch import nn
@@ -14,6 +13,7 @@ from models.mlp.BPMLP import BPMLP
 
 logger = get_logger(__name__)
 
+
 def build_model(cfg: ExperimentConfig, in_channels: int, num_classes: int) -> nn.Module:
     ds = cfg.dataset.lower()
 
@@ -26,7 +26,12 @@ def build_model(cfg: ExperimentConfig, in_channels: int, num_classes: int) -> nn
             input_dim = 32 * 32 * 3
         else:
             raise ValueError(f"Unsupported dataset for MLP: {cfg.dataset}")
-        return MonoFwdMLP(input_dim=input_dim, hidden_dims=hidden_dims, num_classes=num_classes,activation=cfg.activation)
+        return MonoFwdMLP(
+            input_dim=input_dim,
+            hidden_dims=hidden_dims,
+            num_classes=num_classes,
+            activation=cfg.activation,
+        )
 
     # TODO
     # if cfg.model == "cnn":
@@ -35,15 +40,17 @@ def build_model(cfg: ExperimentConfig, in_channels: int, num_classes: int) -> nn
 
     raise ValueError(f"Unknown model type: {cfg.model}")
 
+
 # run experiments
 def set_seed(seed: int) -> None:
     """Set random seeds for reproducibility."""
-    
+
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
     if torch.cuda.is_available():
         torch.cuda.manual_seed_all(seed)
+
 
 def mlp_dimensions(cfg: ExperimentConfig) -> Tuple[int, List[int]]:
     ds = cfg.dataset.lower()
@@ -56,43 +63,47 @@ def mlp_dimensions(cfg: ExperimentConfig) -> Tuple[int, List[int]]:
 
 def run_experiment_mlp(cfg: ExperimentConfig) -> dict:
     """
-    Runs the training and evaluation loop comparing MonoFWD and BP models based on the provided configuration.    
+    Runs the training and evaluation loop comparing MonoFWD and BP models based on the provided configuration.
     Returns:
         dict: Contains metrics for both 'mono' and 'bp'.
     """
     log_file = setup_logging(cfg)
     logger.info(f"Logs saved to: {log_file}")
-    
+
     set_seed(cfg.seed)
-    train_loader, val_loader, test_loader, in_channels, num_classes = build_dataloaders(cfg)
+    train_loader, val_loader, test_loader, in_channels, num_classes = build_dataloaders(
+        cfg
+    )
     input_dim, hidden_dims = mlp_dimensions(cfg)
-        
+
     model_mono = MonoFwdMLP(
-        input_dim=input_dim, 
-        hidden_dims=hidden_dims, 
-        num_classes=num_classes, 
-        activation=cfg.activation
+        input_dim=input_dim,
+        hidden_dims=hidden_dims,
+        num_classes=num_classes,
+        activation=cfg.activation,
     )
-    
+
     model_bp = BPMLP(
-        input_dim=input_dim, 
-        hidden_dims=hidden_dims, 
-        num_classes=num_classes, 
-        activation=cfg.activation
+        input_dim=input_dim,
+        hidden_dims=hidden_dims,
+        num_classes=num_classes,
+        activation=cfg.activation,
     )
-    
+
     model_mono.to(cfg.device)
     model_bp.to(cfg.device)
 
-    mono_metrics = run_monofwd_training(model_mono, train_loader, val_loader, test_loader, cfg)
+    mono_metrics = run_monofwd_training(
+        model_mono, train_loader, val_loader, test_loader, cfg
+    )
     bp_metrics = run_bp_training(model_bp, train_loader, val_loader, test_loader, cfg)
 
     return {
-        'mono_ff': mono_metrics['mono_ff'],
-        'mono_bp': mono_metrics['mono_bp'],
-        'bp': bp_metrics['bp'],
-        'early_stopping': {
-            'mono': mono_metrics['early_stopping'],
-            'bp': bp_metrics['early_stopping'],
-        }
+        "mono_ff": mono_metrics["mono_ff"],
+        "mono_bp": mono_metrics["mono_bp"],
+        "bp": bp_metrics["bp"],
+        "early_stopping": {
+            "mono": mono_metrics["early_stopping"],
+            "bp": bp_metrics["early_stopping"],
+        },
     }
