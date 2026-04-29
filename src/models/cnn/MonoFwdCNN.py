@@ -18,7 +18,7 @@ class MonoFwdConvBlock(nn.Module):
         self.bn = nn.BatchNorm2d(out_ch) if use_bn else nn.Identity()
 
         # proj matrix for goodness scores, use global avg pool
-        # TODO try other flattening methods
+        # TODO consider other flattening methods
         m = num_classes
         n = out_ch
         self.M = nn.Parameter(torch.empty(m, n))

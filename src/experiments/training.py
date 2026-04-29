@@ -8,13 +8,14 @@ from torch.utils.data import DataLoader
 
 from experiments.config import ExperimentConfig
 from experiments.logging_utils import get_logger
+from models.cnn.MonoFwdCNN import MonoFwdCNN
 from models.mlp.BPMLP import BPMLP, train_bp_mlp_one_epoch
-from models.mlp.MonoFwdMLP import MonoFwdMLP, train_monofwd_mlp_one_epoch_autodiff
+from models.mlp.MonoFwdMLP import MonoFwdMLP
 
 logger = get_logger(__name__)
 
 
-def block_parameter_groups(model: MonoFwdMLP) -> List[List[nn.Parameter]]:
+def block_parameter_groups(model: MonoFwdMLP | MonoFwdCNN) -> List[List[nn.Parameter]]:
     groups: List[List[nn.Parameter]] = []
     for block in model.blocks:
         groups.append(list(block.parameters()))
@@ -22,7 +23,7 @@ def block_parameter_groups(model: MonoFwdMLP) -> List[List[nn.Parameter]]:
 
 
 def build_optimizers(
-    model: MonoFwdMLP, cfg: ExperimentConfig
+    model: MonoFwdMLP | MonoFwdCNN, cfg: ExperimentConfig
 ) -> List[torch.optim.Optimizer]:
     opts = []
     for params in block_parameter_groups(model):
@@ -30,9 +31,73 @@ def build_optimizers(
     return opts
 
 
+def train_monofwd_one_epoch_autodiff(
+    model: MonoFwdMLP | MonoFwdCNN,
+    optimizers: List[torch.optim.Optimizer],
+    dataloader: DataLoader,
+    device: str,
+) -> Tuple[float, float, float, float]:
+    """
+    Train any MonoFwd model for one epoch using local autodiff updates per block.
+    The model must implement local_losses_logits(x, y) and expose one optimizer per block.
+    Returns:
+      total_loss_ff, acc_ff, total_loss_bp, acc_bp
+    """
+    model.to(device)
+    model.train()
+    total_loss_ff = 0.0
+    total_correct_ff = 0
+    total_loss_bp = 0.0
+    total_correct_bp = 0
+    total_seen = 0
+
+    for x, y in dataloader:
+        x: torch.Tensor
+        y: torch.Tensor
+
+        x = x.to(device, non_blocking=True)
+        y = y.to(device, non_blocking=True)
+
+        for opt in optimizers:
+            opt.zero_grad(set_to_none=True)
+
+        losses, logits_per_layer = model.local_losses_logits(x, y)
+
+        for loss in losses:
+            loss.backward()
+
+        for opt in optimizers:
+            opt.step()
+
+        with torch.no_grad():
+            final_goodness_ff = torch.stack(logits_per_layer, dim=0).sum(dim=0)
+            final_goodness_bp = logits_per_layer[-1]
+
+            total_loss_ff += float(
+                F.cross_entropy(final_goodness_ff, y).item()
+            ) * x.size(0)
+            total_correct_ff += int((final_goodness_ff.argmax(dim=1) == y).sum().item())
+
+            total_loss_bp += float(
+                F.cross_entropy(final_goodness_bp, y).item()
+            ) * x.size(0)
+            total_correct_bp += int((final_goodness_bp.argmax(dim=1) == y).sum().item())
+
+            total_seen += x.size(0)
+
+    return (
+        total_loss_ff / total_seen,
+        total_correct_ff / total_seen,
+        total_loss_bp / total_seen,
+        total_correct_bp / total_seen,
+    )
+
+
 @torch.no_grad()
 def evaluate_monofwd(
-    model: MonoFwdMLP, loader: DataLoader, device: str
+    model: MonoFwdMLP | MonoFwdCNN,
+    loader: DataLoader,
+    device: str,
 ) -> Tuple[float, float, float, float]:
     model.eval()
     total_loss_ff = 0.0
@@ -64,7 +129,11 @@ def evaluate_monofwd(
 
 
 @torch.no_grad()
-def evaluate_bp(model: BPMLP, loader: DataLoader, device: str) -> Tuple[float, float]:
+def evaluate_bp(
+    model: BPMLP,
+    loader: DataLoader,
+    device: str,
+) -> Tuple[float, float]:
     model.eval()
     total_loss = 0.0
     total_correct = 0
@@ -90,7 +159,7 @@ def early_stopping_improved(
 
 
 def run_monofwd_training(
-    model: MonoFwdMLP,
+    model: MonoFwdMLP | MonoFwdCNN,
     train_loader: DataLoader,
     val_loader: DataLoader,
     test_loader: DataLoader,
@@ -134,7 +203,7 @@ def run_monofwd_training(
 
     for epoch in range(1, cfg.epochs + 1):
         train_loss_ff, train_acc_ff, train_loss_bp, train_acc_bp = (
-            train_monofwd_mlp_one_epoch_autodiff(
+            train_monofwd_one_epoch_autodiff(
                 model, opts, train_loader, device=cfg.device
             )
         )
