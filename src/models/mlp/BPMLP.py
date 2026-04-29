@@ -12,6 +12,7 @@ class BPMLP(nn.Module):
 
         for i in range(len(hidden_dims)):
             layers.append(nn.Linear(dims[i], dims[i + 1]))
+            layers.append(nn.LayerNorm(dims[i + 1]))
             activation_fn = nn.ReLU() if activation == "relu" else nn.Tanh()
             layers.append(activation_fn)
 

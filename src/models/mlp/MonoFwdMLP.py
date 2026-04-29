@@ -10,6 +10,7 @@ class MonoFwdLinearBlock(nn.Module):
     def __init__(self,in_dim: int, out_dim : int, num_classes: int, activation:str = "relu"):
         super().__init__()    
         self.linear = nn.Linear(in_dim, out_dim)
+        self.norm = nn.LayerNorm(out_dim)
 
         # the projection matrix, where m = num categories, n = number of neurons
         m = num_classes
@@ -24,7 +25,8 @@ class MonoFwdLinearBlock(nn.Module):
     def forward(self, x: torch.Tensor) -> Tuple[torch.Tensor,torch.Tensor]:
         # a -> activation, g -> goodness
         # goodness is just the score of each category
-        z = self.linear(x)
+        # after linear layer, apply layer normalization
+        z = self.norm(self.linear(x))
         a = self.activation(z) 
         g = a @ self.M.T
         return a,g
