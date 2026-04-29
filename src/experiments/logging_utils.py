@@ -10,7 +10,7 @@ def setup_logging(cfg: ExperimentConfig) -> str:
     log_dir.mkdir(exist_ok=True)
     
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    log_file = log_dir / f"experiment_{timestamp}.log"
+    log_file = log_dir / f"{cfg.model}_experiment_{timestamp}.log"
     
     # Configure the package logger so experiments.* modules share these handlers.
     logger = logging.getLogger("experiments")

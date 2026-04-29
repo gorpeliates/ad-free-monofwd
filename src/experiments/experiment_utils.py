@@ -2,7 +2,7 @@
 import torch
 from typing import Tuple, List
 from torch import nn
-from models.MonoFwdMLP import *
+from models.mlp.MonoFwdMLP import *
 from experiments.dataset_utils import build_dataloaders
 from experiments.config import ExperimentConfig
 from experiments.logging_utils import setup_logging, get_logger
@@ -11,7 +11,7 @@ import random
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
 
-from models.BPMLP import BPMLP, train_bp_mlp_one_epoch
+from models.mlp.BPMLP import BPMLP, train_bp_mlp_one_epoch
 
 logger = get_logger(__name__)
 
@@ -53,7 +53,7 @@ def build_optimizers(model: nn.Module, cfg: ExperimentConfig) -> List[torch.opti
     """Builds a list of optimizers for each block in the model."""
     opts = []
     for params in block_parameter_groups(model):
-        opts.append(torch.optim.Adam(params, lr=cfg.lr))
+        opts.append(torch.optim.Adam(params, lr=cfg.lr, weight_decay=cfg.weight_decay))
     return opts
 
 # run experiments
@@ -159,7 +159,7 @@ def run_experiment_mlp(cfg: ExperimentConfig) -> dict:
     model_bp.to(cfg.device)
 
     opts_mono = build_optimizers(model_mono, cfg)
-    opt_bp = torch.optim.Adam(model_bp.parameters(), lr=cfg.lr)
+    opt_bp = torch.optim.Adam(model_bp.parameters(), lr=cfg.lr, weight_decay=cfg.weight_decay)
 
     best_test_acc_mono_ff = 0.0
     best_test_acc_mono_bp = 0.0

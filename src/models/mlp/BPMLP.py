@@ -28,7 +28,7 @@ def train_bp_mlp_one_epoch(
     model: nn.Module,
     optimizer: torch.optim.Optimizer,
     dataloader: DataLoader,
-    device: torch.device,
+    device: torch.device
 ) -> tuple[float, float]:
     model.train()
 
