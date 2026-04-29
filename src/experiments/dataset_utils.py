@@ -4,15 +4,16 @@ from experiments.config import ExperimentConfig
 from torch.utils.data import DataLoader, random_split
 import torchvision.transforms as T
 from typing import Tuple
+import torch
 
 
-def build_dataloaders(cfg: ExperimentConfig) -> Tuple[DataLoader, DataLoader, int, int]:
+def build_dataloaders(cfg: ExperimentConfig) -> Tuple[DataLoader, DataLoader, DataLoader, int, int]:
     """
     Builds train and test dataloaders based on the provided config.
     Args:
         cfg: ExperimentConfig object containing dataset and dataloader parameters.
     Returns:
-        Tuples containing train, test loaders, number of input channels, and number of classes.
+        Tuples containing train, validation, test loaders, number of input channels, and number of classes.
 
     """
 
@@ -51,10 +52,26 @@ def build_dataloaders(cfg: ExperimentConfig) -> Tuple[DataLoader, DataLoader, in
     else:
         raise ValueError(f"Unknown dataset: {cfg.dataset}")
 
+    val_size = int(0.1 * len(train_set))
+    train_size = len(train_set) - val_size
+    train_set, val_set = random_split(
+        train_set,
+        [train_size, val_size],
+        generator=torch.Generator().manual_seed(cfg.seed),
+    )
+
     train_loader = DataLoader(
         train_set,
         batch_size=cfg.batch_size,
         shuffle=True,
+        num_workers=cfg.num_workers,
+        pin_memory=True,
+    )
+
+    val_loader = DataLoader(
+        val_set,
+        batch_size=cfg.batch_size,
+        shuffle=False,
         num_workers=cfg.num_workers,
         pin_memory=True,
     )
@@ -67,4 +84,4 @@ def build_dataloaders(cfg: ExperimentConfig) -> Tuple[DataLoader, DataLoader, in
         pin_memory=True,
     )
 
-    return train_loader, test_loader, in_channels, num_classes
+    return train_loader, val_loader, test_loader, in_channels, num_classes
