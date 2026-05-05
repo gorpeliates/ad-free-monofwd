@@ -32,6 +32,11 @@ def parse_args() -> list[ExperimentConfig]:
     parser.add_argument(
         "--activation", type=str, default="relu", choices=["relu", "tanh"]
     )
+    parser.add_argument(
+        "--early-stopping",
+        action="store_true",
+        help="Enable early stopping (default: disabled)",
+    )
     parser.add_argument("--early_stopping_patience", type=int, default=10)
     parser.add_argument("--early_stopping_min_delta", type=float, default=1e-4)
 
@@ -44,6 +49,7 @@ def parse_args() -> list[ExperimentConfig]:
     for dataset in datasets:
         config_args = vars(args).copy()
         config_args["dataset"] = dataset
+        config_args["early_stopping_enabled"] = config_args.pop("early_stopping", False)
         configs.append(ExperimentConfig(**config_args))
 
     return configs

@@ -215,24 +215,25 @@ def run_monofwd_training(
             f"  MONO-BP : train_loss={train_loss_bp:.4f} | train_acc={train_acc_bp:.4f} | val_loss={val_loss_bp:.4f} | val_acc={val_acc_bp:.4f} | best={best_val_acc_bp:.4f}"
         )
 
-        if early_stopping_improved(
-            best_val_loss, val_loss_ff, cfg.early_stopping_min_delta
-        ):
-            best_val_loss = val_loss_ff
-            bad_epochs = 0
-            best_state = deepcopy(model.state_dict())
-            metrics["early_stopping"]["best_epoch"] = epoch
-        else:
-            bad_epochs += 1
-            if bad_epochs >= cfg.early_stopping_patience:
-                metrics["early_stopping"]["stopped_epoch"] = epoch
-                logger.info(
-                    f"MonoFwd early stopping at epoch {epoch}; best epoch was {metrics['early_stopping']['best_epoch']}."
-                )
-                break
+        if cfg.early_stopping_enabled:
+            if early_stopping_improved(
+                best_val_loss, val_loss_ff, cfg.early_stopping_min_delta
+            ):
+                best_val_loss = val_loss_ff
+                bad_epochs = 0
+                best_state = deepcopy(model.state_dict())
+                metrics["early_stopping"]["best_epoch"] = epoch
+            else:
+                bad_epochs += 1
+                if bad_epochs >= cfg.early_stopping_patience:
+                    metrics["early_stopping"]["stopped_epoch"] = epoch
+                    logger.info(
+                        f"MonoFwd early stopping at epoch {epoch}; best epoch was {metrics['early_stopping']['best_epoch']}."
+                    )
+                    break
 
-    if best_state is not None:
-        model.load_state_dict(best_state)
+            if best_state is not None:
+                model.load_state_dict(best_state)
 
     test_loss_ff, test_acc_ff, test_loss_bp, test_acc_bp = evaluate_monofwd(
         model, test_loader, device=cfg.device
@@ -361,24 +362,25 @@ def run_bp_training(
             f"  BP      : train_loss={train_loss:.4f} | train_acc={train_acc:.4f} | val_loss={val_loss:.4f} | val_acc={val_acc:.4f} | best={best_val_acc:.4f}"
         )
 
-        if early_stopping_improved(
-            best_val_loss, val_loss, cfg.early_stopping_min_delta
-        ):
-            best_val_loss = val_loss
-            bad_epochs = 0
-            best_state = deepcopy(model.state_dict())
-            metrics["early_stopping"]["best_epoch"] = epoch
-        else:
-            bad_epochs += 1
-            if bad_epochs >= cfg.early_stopping_patience:
-                metrics["early_stopping"]["stopped_epoch"] = epoch
-                logger.info(
-                    f"BP early stopping at epoch {epoch}; best epoch was {metrics['early_stopping']['best_epoch']}."
-                )
-                break
+        if cfg.early_stopping_enabled:
+            if early_stopping_improved(
+                best_val_loss, val_loss, cfg.early_stopping_min_delta
+            ):
+                best_val_loss = val_loss
+                bad_epochs = 0
+                best_state = deepcopy(model.state_dict())
+                metrics["early_stopping"]["best_epoch"] = epoch
+            else:
+                bad_epochs += 1
+                if bad_epochs >= cfg.early_stopping_patience:
+                    metrics["early_stopping"]["stopped_epoch"] = epoch
+                    logger.info(
+                        f"BP early stopping at epoch {epoch}; best epoch was {metrics['early_stopping']['best_epoch']}."
+                    )
+                    break
 
-    if best_state is not None:
-        model.load_state_dict(best_state)
+            if best_state is not None:
+                model.load_state_dict(best_state)
 
     test_loss, test_acc = evaluate_bp(model, test_loader, device=cfg.device)
     metrics["bp"]["test_losses"].append(test_loss)

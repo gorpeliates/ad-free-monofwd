@@ -14,7 +14,10 @@ class ExperimentConfig:
     seed: int = 42
     data_root: str = "./data"
     num_workers: int = 2
-    activation: str = "relu" # relu | tanh 
-    weight_decay: float = 1e-4  # Adam weight decay; equivalent to L2 regularization strength.
+    activation: str = "relu"  # relu | tanh
+    weight_decay: float = (
+        1e-4  # Adam weight decay; equivalent to L2 regularization strength.
+    )
+    early_stopping_enabled: bool = False
     early_stopping_patience: int = 10
     early_stopping_min_delta: float = 1e-4
