@@ -21,3 +21,6 @@ class ExperimentConfig:
     early_stopping_enabled: bool = False
     early_stopping_patience: int = 10
     early_stopping_min_delta: float = 1e-4
+    training_method: str = "autodiff"  # autodiff | dd
+    dd_eps: float = 1e-3
+    dd_num_perturbations: int = 1

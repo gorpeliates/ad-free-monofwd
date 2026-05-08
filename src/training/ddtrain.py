@@ -1,0 +1,257 @@
+from .trainingutils import (
+    MonoFwdModel,
+    early_stopping_improved,
+)
+from .evaluation import evaluate_monofwd
+from copy import deepcopy
+import torch
+import torch.nn.functional as F
+from torch import nn
+from torch.utils.data import DataLoader
+from experiments.config import ExperimentConfig
+from models.cnn.MonoFwdCNN import MonoFwdConvBlock
+from models.mlp.MonoFwdMLP import MonoFwdLinearBlock, MonoFwdMLP
+from log_utils.logging import get_logger
+
+logger = get_logger(__name__)
+
+
+def _get_pre_proj_activation(
+    block: nn.Module, h: torch.Tensor
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """
+    Run a block's feature extraction (conv/linear + norm/bn + activation) without
+    the projection M, returning (next_h, pre_proj_a).
+
+    next_h    — the spatially-pooled output fed to the next block (CNN) or the activation itself (MLP)
+    pre_proj_a — the activation vector that will be multiplied by M to get logits, shape (B, n).
+    """
+
+    if isinstance(block, MonoFwdConvBlock):
+        x = block.conv(h)
+        x = block.bn(x)
+        a = F.relu(x)
+        next_h = F.avg_pool2d(a, kernel_size=2)
+        pre_proj_a = F.adaptive_avg_pool2d(a, (1, 1)).flatten(1)
+    elif isinstance(block, MonoFwdLinearBlock):
+        z = block.norm(block.linear(h))
+        pre_proj_a = block.activation(z)
+        next_h = pre_proj_a
+    else:
+        raise TypeError(f"Unsupported block type: {type(block)}")
+
+    return next_h, pre_proj_a
+
+
+@torch.no_grad()
+def train_monofwd_one_epoch_dd(
+    model: MonoFwdModel,
+    dataloader: DataLoader,
+    cfg: ExperimentConfig,
+) -> tuple[float, float, float, float]:
+    """
+    Train any MonoFwd model for one epoch using directional-derivative updates.
+    No autodiff — all gradient estimates come from finite-difference forward passes.
+
+    For each block l and each parameter group (W and M):
+        w ← w − lr·(n/P) · sum_p [( L+ − L- )/(2eps)] · vhat_p
+
+    Returns: total_loss_ff, acc_ff, total_loss_bp, acc_bp
+    """
+    model.to(cfg.device)
+    model.train()
+
+    eps = cfg.dd_eps
+    P = cfg.dd_num_perturbations
+    lr = cfg.lr
+
+    total_loss_ff = 0.0
+    total_correct_ff = 0
+    total_loss_bp = 0.0
+    total_correct_bp = 0
+    total_seen = 0
+
+    for x, y in dataloader:
+        x: torch.Tensor
+        y: torch.Tensor
+        x = x.to(cfg.device, non_blocking=True)
+        y = y.to(cfg.device, non_blocking=True)
+
+        # flatten for mlp, keep spatial for cnn
+        h = x.flatten(1) if isinstance(model, MonoFwdMLP) else x
+        logits_per_layer: list[torch.Tensor] = []
+
+        for block in model.blocks:
+            block: MonoFwdConvBlock | MonoFwdLinearBlock
+            # -------- W update --------------------------------
+            w_params = [p for name, p in block.named_parameters() if name != "M"]
+
+            n_W = sum(p.numel() for p in w_params)
+
+            grad_acc_W = torch.zeros(n_W, device=cfg.device)
+
+            for _ in range(P):
+                v = torch.randn(n_W, device=cfg.device)
+                v_hat = v / v.norm()
+
+                # +eps perturbation
+                _apply_perturbation(w_params, eps * v_hat)
+                _, g_plus = block.forward(h)
+                L_plus = F.cross_entropy(g_plus, y).item()
+
+                # −2eps (net −eps from baseline)
+                _apply_perturbation(w_params, -2.0 * eps * v_hat)
+                _, g_minus = block.forward(h)
+                L_minus = F.cross_entropy(g_minus, y).item()
+
+                # restore
+                _apply_perturbation(w_params, eps * v_hat)
+
+                dd = (L_plus - L_minus) / (2.0 * eps)
+                grad_acc_W += dd * v_hat
+
+            # apply W update
+            _apply_perturbation(w_params, -(lr * n_W / P) * grad_acc_W)
+
+            # --------------- M update -----------------------
+
+            next_h, pre_proj_a = _get_pre_proj_activation(block, h)
+            n_M = block.M.numel()
+            grad_acc_M = torch.zeros(n_M, device=cfg.device)
+
+            for _ in range(P):
+                u = torch.randn(n_M, device=cfg.device)
+                u_hat = u / u.norm()
+                u_hat_mat = u_hat.view_as(block.M)
+
+                g_plus = pre_proj_a @ (block.M + eps * u_hat_mat).T
+                L_plus = F.cross_entropy(g_plus, y).item()
+
+                g_minus = pre_proj_a @ (block.M - eps * u_hat_mat).T
+                L_minus = F.cross_entropy(g_minus, y).item()
+
+                dd = (L_plus - L_minus) / (2.0 * eps)
+                grad_acc_M += dd * u_hat
+
+            block.M.data -= (lr * n_M / P) * grad_acc_M.view_as(block.M)
+
+            #  collect logits and advance h to next block
+            g_final = pre_proj_a @ block.M.T
+            logits_per_layer.append(g_final)
+            h = next_h.detach()
+
+        final_goodness_ff = torch.stack(logits_per_layer, dim=0).sum(dim=0)
+        final_goodness_bp = logits_per_layer[-1]
+
+        total_loss_ff += float(F.cross_entropy(final_goodness_ff, y).item()) * x.size(0)
+        total_correct_ff += int((final_goodness_ff.argmax(dim=1) == y).sum().item())
+        total_loss_bp += float(F.cross_entropy(final_goodness_bp, y).item()) * x.size(0)
+        total_correct_bp += int((final_goodness_bp.argmax(dim=1) == y).sum().item())
+        total_seen += x.size(0)
+
+    return (
+        total_loss_ff / total_seen,
+        total_correct_ff / total_seen,
+        total_loss_bp / total_seen,
+        total_correct_bp / total_seen,
+    )
+
+
+def _apply_perturbation(params: list[nn.Parameter], flat_delta: torch.Tensor) -> None:
+    """Add a flat delta vector back into a list of parameters in-place."""
+    idx = 0
+    for p in params:
+        n = p.numel()
+        p.data += flat_delta[idx : idx + n].view_as(p)
+        idx += n
+
+
+def run_monofwd_training_dd(
+    model: MonoFwdModel,
+    train_loader: DataLoader,
+    val_loader: DataLoader,
+    test_loader: DataLoader,
+    cfg: ExperimentConfig,
+) -> dict:
+    """Runs MF+DD training. Same metrics structure as run_monofwd_training."""
+    best_val_loss = float("inf")
+    best_state = None
+    bad_epochs = 0
+    best_val_acc_ff = 0.0
+    best_val_acc_bp = 0.0
+
+    metrics = {
+        "mono_ff": {
+            "train_losses": [],
+            "train_accs": [],
+            "val_losses": [],
+            "val_accs": [],
+            "test_losses": [],
+            "test_accs": [],
+        },
+        "mono_bp": {
+            "train_losses": [],
+            "train_accs": [],
+            "val_losses": [],
+            "val_accs": [],
+            "test_losses": [],
+            "test_accs": [],
+        },
+        "early_stopping": {"best_epoch": 0, "stopped_epoch": 0},
+    }
+
+    for epoch in range(1, cfg.epochs + 1):
+        train_loss_ff, train_acc_ff, train_loss_bp, train_acc_bp = (
+            train_monofwd_one_epoch_dd(model, train_loader, cfg)
+        )
+        val_loss_ff, val_acc_ff, val_loss_bp, val_acc_bp = evaluate_monofwd(
+            model, val_loader, device=cfg.device
+        )
+
+        best_val_acc_ff = max(best_val_acc_ff, val_acc_ff)
+        best_val_acc_bp = max(best_val_acc_bp, val_acc_bp)
+
+        metrics["mono_ff"]["train_losses"].append(train_loss_ff)
+        metrics["mono_ff"]["train_accs"].append(train_acc_ff)
+        metrics["mono_ff"]["val_losses"].append(val_loss_ff)
+        metrics["mono_ff"]["val_accs"].append(val_acc_ff)
+
+        metrics["mono_bp"]["train_losses"].append(train_loss_bp)
+        metrics["mono_bp"]["train_accs"].append(train_acc_bp)
+        metrics["mono_bp"]["val_losses"].append(val_loss_bp)
+        metrics["mono_bp"]["val_accs"].append(val_acc_bp)
+
+        logger.info(
+            f"\n[MF+DD Epoch {epoch}/{cfg.epochs}]\n"
+            f"  MONO-FF : train_loss={train_loss_ff:.4f} | train_acc={train_acc_ff:.4f} | val_loss={val_loss_ff:.4f} | val_acc={val_acc_ff:.4f} | best={best_val_acc_ff:.4f}\n"
+            f"  MONO-BP : train_loss={train_loss_bp:.4f} | train_acc={train_acc_bp:.4f} | val_loss={val_loss_bp:.4f} | val_acc={val_acc_bp:.4f} | best={best_val_acc_bp:.4f}"
+        )
+
+        if cfg.early_stopping_enabled:
+            if early_stopping_improved(
+                best_val_loss, val_loss_ff, cfg.early_stopping_min_delta
+            ):
+                best_val_loss = val_loss_ff
+                bad_epochs = 0
+                best_state = deepcopy(model.state_dict())
+                metrics["early_stopping"]["best_epoch"] = epoch
+            else:
+                bad_epochs += 1
+                if bad_epochs >= cfg.early_stopping_patience:
+                    metrics["early_stopping"]["stopped_epoch"] = epoch
+                    logger.info(
+                        f"MF+DD early stopping at epoch {epoch}; best epoch was {metrics['early_stopping']['best_epoch']}."
+                    )
+                    break
+
+            if best_state is not None:
+                model.load_state_dict(best_state)
+
+    test_loss_ff, test_acc_ff, test_loss_bp, test_acc_bp = evaluate_monofwd(
+        model, test_loader, device=cfg.device
+    )
+    metrics["mono_ff"]["test_losses"].append(test_loss_ff)
+    metrics["mono_ff"]["test_accs"].append(test_acc_ff)
+    metrics["mono_bp"]["test_losses"].append(test_loss_bp)
+    metrics["mono_bp"]["test_accs"].append(test_acc_bp)
+    return metrics

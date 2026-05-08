@@ -6,11 +6,13 @@ from models.cnn.MonoFwdCNN import MonoFwdCNN
 from models.mlp.MonoFwdMLP import MonoFwdMLP
 from experiments.dataset_utils import build_dataloaders
 from experiments.config import ExperimentConfig
-from experiments.logging_utils import setup_logging, get_logger
+from log_utils.logging import setup_logging, get_logger
 import numpy as np
 import random
 
-from experiments.training import run_bp_training, run_monofwd_training
+from training.monofwdtrain import run_monofwd_training_ad
+from training.ddtrain import run_monofwd_training_dd
+from training.bptrain import run_bp_training
 from models.mlp.BPMLP import BPMLP
 
 logger = get_logger(__name__)
@@ -99,9 +101,12 @@ def run_experiment_mlp(cfg: ExperimentConfig) -> dict:
     model_mono.to(cfg.device)
     model_bp.to(cfg.device)
 
-    mono_metrics = run_monofwd_training(
-        model_mono, train_loader, val_loader, test_loader, cfg
+    _run_mono = (
+        run_monofwd_training_dd
+        if cfg.training_method == "dd"
+        else run_monofwd_training_ad
     )
+    mono_metrics = _run_mono(model_mono, train_loader, val_loader, test_loader, cfg)
     bp_metrics = run_bp_training(model_bp, train_loader, val_loader, test_loader, cfg)
 
     return {
@@ -147,9 +152,12 @@ def run_experiment_cnn(cfg: ExperimentConfig) -> dict:
     model_mono.to(cfg.device)
     model_bp.to(cfg.device)
 
-    mono_metrics = run_monofwd_training(
-        model_mono, train_loader, val_loader, test_loader, cfg
+    _run_mono = (
+        run_monofwd_training_dd
+        if cfg.training_method == "dd"
+        else run_monofwd_training_ad
     )
+    mono_metrics = _run_mono(model_mono, train_loader, val_loader, test_loader, cfg)
     bp_metrics = run_bp_training(model_bp, train_loader, val_loader, test_loader, cfg)
 
     return {

@@ -39,6 +39,22 @@ def parse_args() -> list[ExperimentConfig]:
     )
     parser.add_argument("--early_stopping_patience", type=int, default=10)
     parser.add_argument("--early_stopping_min_delta", type=float, default=1e-4)
+    parser.add_argument(
+        "--training_method",
+        type=str,
+        default="autodiff",
+        choices=["autodiff", "dd"],
+        help="MonoFwd training method: autodiff (default) or dd (directional derivatives)",
+    )
+    parser.add_argument(
+        "--dd_eps", type=float, default=1e-3, help="Perturbation magnitude ε for MF+DD"
+    )
+    parser.add_argument(
+        "--dd_num_perturbations",
+        type=int,
+        default=1,
+        help="Number of perturbation directions P per block per step for MF+DD",
+    )
 
     args = parser.parse_args()
     datasets = (
