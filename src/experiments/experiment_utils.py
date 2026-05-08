@@ -43,7 +43,7 @@ def build_model(cfg: ExperimentConfig, in_channels: int, num_classes: int) -> nn
             in_ch=in_channels,
             channels=channels,
             num_classes=num_classes,
-            use_bn=False,
+            use_bn=cfg.use_bn,
         )
 
     raise ValueError(f"Unknown model type: {cfg.model}")
@@ -139,14 +139,14 @@ def run_experiment_cnn(cfg: ExperimentConfig) -> dict:
         in_ch=in_channels,
         channels=channels,
         num_classes=num_classes,
-        use_bn=False,
+        use_bn=cfg.use_bn,
     )
 
     model_bp = BPCNN(
         in_ch=in_channels,
         channels=channels,
         num_classes=num_classes,
-        use_bn=False,
+        use_bn=cfg.use_bn,
     )
 
     model_mono.to(cfg.device)

@@ -24,3 +24,4 @@ class ExperimentConfig:
     training_method: str = "autodiff"  # autodiff | dd
     dd_eps: float = 1e-3
     dd_num_perturbations: int = 1
+    use_bn: bool = True

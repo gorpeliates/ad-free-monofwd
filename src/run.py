@@ -55,6 +55,13 @@ def parse_args() -> list[ExperimentConfig]:
         default=1,
         help="Number of perturbation directions P per block per step for MF+DD",
     )
+    parser.add_argument(
+        "--no-bn",
+        dest="use_bn",
+        action="store_false",
+        help="Disable batch normalization (default: enabled)",
+    )
+    parser.set_defaults(use_bn=True)
 
     args = parser.parse_args()
     datasets = (
