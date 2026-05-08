@@ -1,11 +1,12 @@
 import torch
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
+from torch.utils.tensorboard import SummaryWriter
 from experiments.config import ExperimentConfig
 from .trainingutils import early_stopping_improved, BPModel
 from .evaluation import evaluate_bp
 from copy import deepcopy
-from typing import Tuple
+from typing import Optional, Tuple
 from log_utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -53,6 +54,7 @@ def run_bp_training(
     val_loader: DataLoader,
     test_loader: DataLoader,
     cfg: ExperimentConfig,
+    writer: Optional[SummaryWriter] = None,
 ) -> dict:
     """Runs standard BP training with early stopping based on validation loss. Returns metrics for BP predictor.
     Returns:
@@ -100,6 +102,10 @@ def run_bp_training(
             f"\n[BP Epoch {epoch}/{cfg.epochs}]\n"
             f"  BP      : train_loss={train_loss:.4f} | train_acc={train_acc:.4f} | val_loss={val_loss:.4f} | val_acc={val_acc:.4f} | best={best_val_acc:.4f}"
         )
+
+        if writer:
+            writer.add_scalars("bp/loss", {"train": train_loss, "val": val_loss}, epoch)
+            writer.add_scalars("bp/acc", {"train": train_acc, "val": val_acc}, epoch)
 
         if cfg.early_stopping_enabled:
             if early_stopping_improved(

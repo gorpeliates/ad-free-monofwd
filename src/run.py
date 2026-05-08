@@ -62,6 +62,12 @@ def parse_args() -> list[ExperimentConfig]:
         help="Disable batch normalization (default: enabled)",
     )
     parser.set_defaults(use_bn=True)
+    parser.add_argument(
+        "--logdir",
+        type=str,
+        default="runs",
+        help="TensorBoard log directory (default: runs/)",
+    )
 
     args = parser.parse_args()
     datasets = (
@@ -73,6 +79,7 @@ def parse_args() -> list[ExperimentConfig]:
         config_args = vars(args).copy()
         config_args["dataset"] = dataset
         config_args["early_stopping_enabled"] = config_args.pop("early_stopping", False)
+        config_args["tensorboard_logdir"] = config_args.pop("logdir", "runs")
         configs.append(ExperimentConfig(**config_args))
 
     return configs

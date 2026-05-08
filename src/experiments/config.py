@@ -25,3 +25,4 @@ class ExperimentConfig:
     dd_eps: float = 1e-3
     dd_num_perturbations: int = 1
     use_bn: bool = True
+    tensorboard_logdir: str = "runs"

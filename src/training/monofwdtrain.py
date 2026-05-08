@@ -6,10 +6,11 @@ from .trainingutils import (
 )
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
+from torch.utils.tensorboard import SummaryWriter
 from experiments.config import ExperimentConfig
 from .evaluation import evaluate_monofwd
 from log_utils.logging import get_logger
-from typing import Tuple, List
+from typing import Optional, Tuple, List
 from copy import deepcopy
 
 logger = get_logger(__name__)
@@ -83,6 +84,7 @@ def run_monofwd_training_ad(
     val_loader: DataLoader,
     test_loader: DataLoader,
     cfg: ExperimentConfig,
+    writer: Optional[SummaryWriter] = None,
 ) -> dict:
     """Runs MonoFWD training with early stopping based on validation loss. Returns metrics for both FF and BP predictors.
     Returns:
@@ -148,6 +150,20 @@ def run_monofwd_training_ad(
             f"  MONO-FF : train_loss={train_loss_ff:.4f} | train_acc={train_acc_ff:.4f} | val_loss={val_loss_ff:.4f} | val_acc={val_acc_ff:.4f} | best={best_val_acc_ff:.4f}\n"
             f"  MONO-BP : train_loss={train_loss_bp:.4f} | train_acc={train_acc_bp:.4f} | val_loss={val_loss_bp:.4f} | val_acc={val_acc_bp:.4f} | best={best_val_acc_bp:.4f}"
         )
+
+        if writer:
+            writer.add_scalars(
+                "mono_ff/loss", {"train": train_loss_ff, "val": val_loss_ff}, epoch
+            )
+            writer.add_scalars(
+                "mono_ff/acc", {"train": train_acc_ff, "val": val_acc_ff}, epoch
+            )
+            writer.add_scalars(
+                "mono_bp/loss", {"train": train_loss_bp, "val": val_loss_bp}, epoch
+            )
+            writer.add_scalars(
+                "mono_bp/acc", {"train": train_acc_bp, "val": val_acc_bp}, epoch
+            )
 
         if cfg.early_stopping_enabled:
             if early_stopping_improved(

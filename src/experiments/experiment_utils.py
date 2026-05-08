@@ -1,12 +1,14 @@
 import torch
 from typing import Tuple, List
 from torch import nn
+from torch.utils.tensorboard import SummaryWriter
 from models.cnn.BPCNN import BPCNN
 from models.cnn.MonoFwdCNN import MonoFwdCNN
 from models.mlp.MonoFwdMLP import MonoFwdMLP
 from experiments.dataset_utils import build_dataloaders
 from experiments.config import ExperimentConfig
 from log_utils.logging import setup_logging, get_logger
+from datetime import datetime
 import numpy as np
 import random
 
@@ -101,13 +103,22 @@ def run_experiment_mlp(cfg: ExperimentConfig) -> dict:
     model_mono.to(cfg.device)
     model_bp.to(cfg.device)
 
+    run_name = f"mlp_{cfg.dataset}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+    writer = SummaryWriter(log_dir=f"{cfg.tensorboard_logdir}/{run_name}")
+    logger.info(f"TensorBoard logs: {cfg.tensorboard_logdir}/{run_name}")
+
     _run_mono = (
         run_monofwd_training_dd
         if cfg.training_method == "dd"
         else run_monofwd_training_ad
     )
-    mono_metrics = _run_mono(model_mono, train_loader, val_loader, test_loader, cfg)
-    bp_metrics = run_bp_training(model_bp, train_loader, val_loader, test_loader, cfg)
+    mono_metrics = _run_mono(
+        model_mono, train_loader, val_loader, test_loader, cfg, writer=writer
+    )
+    bp_metrics = run_bp_training(
+        model_bp, train_loader, val_loader, test_loader, cfg, writer=writer
+    )
+    writer.close()
 
     return {
         "mono_ff": mono_metrics["mono_ff"],
@@ -152,13 +163,22 @@ def run_experiment_cnn(cfg: ExperimentConfig) -> dict:
     model_mono.to(cfg.device)
     model_bp.to(cfg.device)
 
+    run_name = f"cnn_{cfg.dataset}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+    writer = SummaryWriter(log_dir=f"{cfg.tensorboard_logdir}/{run_name}")
+    logger.info(f"TensorBoard logs: {cfg.tensorboard_logdir}/{run_name}")
+
     _run_mono = (
         run_monofwd_training_dd
         if cfg.training_method == "dd"
         else run_monofwd_training_ad
     )
-    mono_metrics = _run_mono(model_mono, train_loader, val_loader, test_loader, cfg)
-    bp_metrics = run_bp_training(model_bp, train_loader, val_loader, test_loader, cfg)
+    mono_metrics = _run_mono(
+        model_mono, train_loader, val_loader, test_loader, cfg, writer=writer
+    )
+    bp_metrics = run_bp_training(
+        model_bp, train_loader, val_loader, test_loader, cfg, writer=writer
+    )
+    writer.close()
 
     return {
         "mono_ff": mono_metrics["mono_ff"],

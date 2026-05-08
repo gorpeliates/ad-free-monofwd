@@ -8,10 +8,12 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 from torch.utils.data import DataLoader
+from torch.utils.tensorboard import SummaryWriter
 from experiments.config import ExperimentConfig
 from models.cnn.MonoFwdCNN import MonoFwdConvBlock
 from models.mlp.MonoFwdMLP import MonoFwdLinearBlock, MonoFwdMLP
 from log_utils.logging import get_logger
+from typing import Optional
 
 logger = get_logger(__name__)
 
@@ -172,6 +174,7 @@ def run_monofwd_training_dd(
     val_loader: DataLoader,
     test_loader: DataLoader,
     cfg: ExperimentConfig,
+    writer: Optional[SummaryWriter] = None,
 ) -> dict:
     """Runs MF+DD training. Same metrics structure as run_monofwd_training."""
     best_val_loss = float("inf")
@@ -226,6 +229,20 @@ def run_monofwd_training_dd(
             f"  MONO-FF : train_loss={train_loss_ff:.4f} | train_acc={train_acc_ff:.4f} | val_loss={val_loss_ff:.4f} | val_acc={val_acc_ff:.4f} | best={best_val_acc_ff:.4f}\n"
             f"  MONO-BP : train_loss={train_loss_bp:.4f} | train_acc={train_acc_bp:.4f} | val_loss={val_loss_bp:.4f} | val_acc={val_acc_bp:.4f} | best={best_val_acc_bp:.4f}"
         )
+
+        if writer:
+            writer.add_scalars(
+                "mono_ff/loss", {"train": train_loss_ff, "val": val_loss_ff}, epoch
+            )
+            writer.add_scalars(
+                "mono_ff/acc", {"train": train_acc_ff, "val": val_acc_ff}, epoch
+            )
+            writer.add_scalars(
+                "mono_bp/loss", {"train": train_loss_bp, "val": val_loss_bp}, epoch
+            )
+            writer.add_scalars(
+                "mono_bp/acc", {"train": train_acc_bp, "val": val_acc_bp}, epoch
+            )
 
         if cfg.early_stopping_enabled:
             if early_stopping_improved(
