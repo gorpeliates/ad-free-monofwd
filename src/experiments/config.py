@@ -15,7 +15,7 @@ class ExperimentConfig:
     data_root: str = "./data"
     num_workers: int = 2
     activation: str = "relu"  # relu | tanh
-    weight_decay: float = 1e-2
+    weight_decay: float = 1e-3
     early_stopping: bool = True
     early_stopping_patience: int = 10
     early_stopping_min_delta: float = 1e-4
@@ -23,6 +23,8 @@ class ExperimentConfig:
     dd_eps: float = 1e-3
     dd_num_perturbations: int = 1
     use_bn: bool = True
+    dropout_rate: float = 0.3
+    warmup_steps: int = 100
     tensorboard_logdir: str = "runs"
     reduce_lr_on_plateau: bool = True
     reduce_lr_factor: float = 0.5

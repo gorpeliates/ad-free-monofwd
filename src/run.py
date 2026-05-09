@@ -22,7 +22,7 @@ def parse_args() -> list[ExperimentConfig]:
     parser.add_argument("--batch_size", type=int, default=256)
     parser.add_argument("--epochs", type=int, default=100)
     parser.add_argument("--lr", type=float, default=1e-3)
-    parser.add_argument("--weight_decay", type=float, default=1e-2)
+    parser.add_argument("--weight_decay", type=float, default=1e-3)
     parser.add_argument(
         "--no-reduce-lr",
         dest="reduce_lr_on_plateau",
@@ -73,6 +73,18 @@ def parse_args() -> list[ExperimentConfig]:
     )
     parser.set_defaults(use_bn=True)
     parser.set_defaults(reduce_lr_on_plateau=True)
+    parser.add_argument(
+        "--dropout_rate",
+        type=float,
+        default=0.3,
+        help="Dropout rate for regularization",
+    )
+    parser.add_argument(
+        "--warmup_steps",
+        type=int,
+        default=100,
+        help="Number of training steps for linear learning rate warmup",
+    )
     parser.add_argument(
         "--logdir",
         type=str,

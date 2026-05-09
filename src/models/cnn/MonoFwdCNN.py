@@ -12,10 +12,12 @@ class MonoFwdConvBlock(nn.Module):
         out_ch: int,
         num_classes: int,
         use_bn: bool = False,
+        dropout_rate: float = 0.0,
     ):
         super().__init__()
         self.conv = nn.Conv2d(in_ch, out_ch, kernel_size=3, padding=1)
         self.bn = nn.BatchNorm2d(out_ch) if use_bn else nn.Identity()
+        self.dropout = nn.Dropout2d(dropout_rate) if dropout_rate > 0 else nn.Identity()
 
         # proj matrix for goodness scores, use global avg pool
         # TODO consider other flattening methods
@@ -33,6 +35,7 @@ class MonoFwdConvBlock(nn.Module):
         x = self.conv(x)
         x = self.bn(x)
         a = F.relu(x)
+        a = self.dropout(a)
         x = F.avg_pool2d(a, kernel_size=2)  # Average pooling for the next layer
 
         # Global average pool for the goodness score calculation
@@ -47,14 +50,14 @@ class MonoFwdConvBlock(nn.Module):
 
 class MonoFwdCNN(nn.Module):
     def __init__(
-        self, in_ch: int, channels: List[int], num_classes: int, use_bn: bool = False
+        self, in_ch: int, channels: List[int], num_classes: int, use_bn: bool = False, dropout_rate: float = 0.0
     ):
         super().__init__()
         self.num_classes = num_classes
         dims = [in_ch] + channels
         self.blocks = nn.ModuleList(
             [
-                MonoFwdConvBlock(dims[i], dims[i + 1], num_classes, use_bn=use_bn)
+                MonoFwdConvBlock(dims[i], dims[i + 1], num_classes, use_bn=use_bn, dropout_rate=dropout_rate)
                 for i in range(
                     len(channels),
                 )

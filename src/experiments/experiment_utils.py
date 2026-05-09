@@ -91,6 +91,7 @@ def run_experiment_mlp(cfg: ExperimentConfig) -> dict:
         hidden_dims=hidden_dims,
         num_classes=num_classes,
         activation=cfg.activation,
+        dropout_rate=cfg.dropout_rate,
     )
 
     model_bp = BPMLP(
@@ -98,6 +99,7 @@ def run_experiment_mlp(cfg: ExperimentConfig) -> dict:
         hidden_dims=hidden_dims,
         num_classes=num_classes,
         activation=cfg.activation,
+        dropout_rate=cfg.dropout_rate,
     )
 
     model_mono.to(cfg.device)
@@ -151,6 +153,7 @@ def run_experiment_cnn(cfg: ExperimentConfig) -> dict:
         channels=channels,
         num_classes=num_classes,
         use_bn=cfg.use_bn,
+        dropout_rate=cfg.dropout_rate,
     )
 
     model_bp = BPCNN(
@@ -158,6 +161,7 @@ def run_experiment_cnn(cfg: ExperimentConfig) -> dict:
         channels=channels,
         num_classes=num_classes,
         use_bn=cfg.use_bn,
+        dropout_rate=cfg.dropout_rate,
     )
 
     model_mono.to(cfg.device)

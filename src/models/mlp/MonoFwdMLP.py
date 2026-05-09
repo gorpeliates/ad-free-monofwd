@@ -9,7 +9,7 @@ import math
 
 class MonoFwdLinearBlock(nn.Module):
     def __init__(
-        self, in_dim: int, out_dim: int, num_classes: int, activation: str = "relu"
+        self, in_dim: int, out_dim: int, num_classes: int, activation: str = "relu", dropout_rate: float = 0.0
     ):
         super().__init__()
         self.linear = nn.Linear(in_dim, out_dim)
@@ -23,6 +23,7 @@ class MonoFwdLinearBlock(nn.Module):
         nn.init.kaiming_uniform_(self.M, a=math.sqrt(5))
 
         self.activation = F.relu if activation == "relu" else F.tanh
+        self.dropout = nn.Dropout(dropout_rate) if dropout_rate > 0 else nn.Identity()
 
     def forward(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         # a -> activation, g -> goodness
@@ -30,6 +31,7 @@ class MonoFwdLinearBlock(nn.Module):
         # after linear layer, apply layer normalization
         z = self.norm(self.linear(x))
         a = self.activation(z)
+        a = self.dropout(a)
         g = a @ self.M.T
         return a, g
 
@@ -41,13 +43,14 @@ class MonoFwdMLP(nn.Module):
         hidden_dims: list[int],
         num_classes: int,
         activation: str = "relu",
+        dropout_rate: float = 0.0,
     ):
         super().__init__()
         dims = [input_dim] + hidden_dims
         self.blocks = nn.ModuleList(
             [
                 MonoFwdLinearBlock(
-                    dims[i], dims[i + 1], num_classes, activation=activation
+                    dims[i], dims[i + 1], num_classes, activation=activation, dropout_rate=dropout_rate
                 )
                 for i in range(len(hidden_dims))
             ]
