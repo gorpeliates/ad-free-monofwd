@@ -50,6 +50,7 @@ def train_monofwd_one_epoch_dd(
     model: MonoFwdModel,
     dataloader: DataLoader,
     cfg: ExperimentConfig,
+    current_lr: float | None = None,
 ) -> tuple[float, float, float, float]:
     """
     Train any MonoFwd model for one epoch using directional-derivative updates.
@@ -65,7 +66,7 @@ def train_monofwd_one_epoch_dd(
 
     eps = cfg.dd_eps
     P = cfg.dd_num_perturbations
-    lr = cfg.lr
+    lr = current_lr if current_lr is not None else cfg.lr
 
     total_loss_ff = 0.0
     total_correct_ff = 0
@@ -182,7 +183,7 @@ def run_monofwd_training_dd(
     bad_epochs = 0
     best_val_acc_ff = 0.0
     best_val_acc_bp = 0.0
-
+    current_lr = cfg.lr
     metrics = {
         "mono_ff": {
             "train_losses": [],
@@ -205,11 +206,12 @@ def run_monofwd_training_dd(
 
     for epoch in range(1, cfg.epochs + 1):
         train_loss_ff, train_acc_ff, train_loss_bp, train_acc_bp = (
-            train_monofwd_one_epoch_dd(model, train_loader, cfg)
+            train_monofwd_one_epoch_dd(model, train_loader, cfg, current_lr=current_lr)
         )
         val_loss_ff, val_acc_ff, val_loss_bp, val_acc_bp = evaluate_monofwd(
             model, val_loader, device=cfg.device
         )
+        model.train()
 
         best_val_acc_ff = max(best_val_acc_ff, val_acc_ff)
         best_val_acc_bp = max(best_val_acc_bp, val_acc_bp)
@@ -231,20 +233,16 @@ def run_monofwd_training_dd(
         )
 
         if writer:
-            writer.add_scalars(
-                "mono_ff/loss", {"train": train_loss_ff, "val": val_loss_ff}, epoch
-            )
-            writer.add_scalars(
-                "mono_ff/acc", {"train": train_acc_ff, "val": val_acc_ff}, epoch
-            )
-            writer.add_scalars(
-                "mono_bp/loss", {"train": train_loss_bp, "val": val_loss_bp}, epoch
-            )
-            writer.add_scalars(
-                "mono_bp/acc", {"train": train_acc_bp, "val": val_acc_bp}, epoch
-            )
+            writer.add_scalar("mono_ff/loss/train", train_loss_ff, epoch)
+            writer.add_scalar("mono_ff/loss/val", val_loss_ff, epoch)
+            writer.add_scalar("mono_ff/acc/train", train_acc_ff, epoch)
+            writer.add_scalar("mono_ff/acc/val", val_acc_ff, epoch)
+            writer.add_scalar("mono_bp/loss/train", train_loss_bp, epoch)
+            writer.add_scalar("mono_bp/loss/val", val_loss_bp, epoch)
+            writer.add_scalar("mono_bp/acc/train", train_acc_bp, epoch)
+            writer.add_scalar("mono_bp/acc/val", val_acc_bp, epoch)
 
-        if cfg.early_stopping_enabled:
+        if cfg.early_stopping:
             if early_stopping_improved(
                 best_val_loss, val_loss_ff, cfg.early_stopping_min_delta
             ):
@@ -261,8 +259,8 @@ def run_monofwd_training_dd(
                     )
                     break
 
-            if best_state is not None:
-                model.load_state_dict(best_state)
+    if best_state is not None:
+        model.load_state_dict(best_state)
 
     test_loss_ff, test_acc_ff, test_loss_bp, test_acc_bp = evaluate_monofwd(
         model, test_loader, device=cfg.device

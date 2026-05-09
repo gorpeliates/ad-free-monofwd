@@ -22,7 +22,16 @@ def parse_args() -> list[ExperimentConfig]:
     parser.add_argument("--batch_size", type=int, default=256)
     parser.add_argument("--epochs", type=int, default=100)
     parser.add_argument("--lr", type=float, default=1e-3)
-    parser.add_argument("--weight_decay", type=float, default=1e-4)
+    parser.add_argument("--weight_decay", type=float, default=1e-2)
+    parser.add_argument(
+        "--no-reduce-lr",
+        dest="reduce_lr_on_plateau",
+        action="store_false",
+        help="Disable ReduceLROnPlateau scheduling on validation loss.",
+    )
+    parser.add_argument("--reduce_lr_factor", type=float, default=0.5)
+    parser.add_argument("--reduce_lr_patience", type=int, default=5)
+    parser.add_argument("--min_lr", type=float, default=1e-6)
     parser.add_argument(
         "--device", type=str, default="cuda" if torch.cuda.is_available() else "cpu"
     )
@@ -33,9 +42,10 @@ def parse_args() -> list[ExperimentConfig]:
         "--activation", type=str, default="relu", choices=["relu", "tanh"]
     )
     parser.add_argument(
-        "--early-stopping",
-        action="store_true",
-        help="Enable early stopping (default: disabled)",
+        "--no-early-stopping",
+        action="store_false",
+        dest="early_stopping",
+        help="Disable early stopping",
     )
     parser.add_argument("--early_stopping_patience", type=int, default=10)
     parser.add_argument("--early_stopping_min_delta", type=float, default=1e-4)
@@ -62,6 +72,7 @@ def parse_args() -> list[ExperimentConfig]:
         help="Disable batch normalization (default: enabled)",
     )
     parser.set_defaults(use_bn=True)
+    parser.set_defaults(reduce_lr_on_plateau=True)
     parser.add_argument(
         "--logdir",
         type=str,
@@ -78,7 +89,7 @@ def parse_args() -> list[ExperimentConfig]:
     for dataset in datasets:
         config_args = vars(args).copy()
         config_args["dataset"] = dataset
-        config_args["early_stopping_enabled"] = config_args.pop("early_stopping", False)
+        config_args["early_stopping"] = config_args.pop("early_stopping", True)
         config_args["tensorboard_logdir"] = config_args.pop("logdir", "runs")
         configs.append(ExperimentConfig(**config_args))
 

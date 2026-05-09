@@ -24,8 +24,22 @@ def build_optimizers(
 ) -> List[torch.optim.Optimizer]:
     opts = []
     for params in block_parameter_groups(model):
-        opts.append(torch.optim.Adam(params, lr=cfg.lr, weight_decay=cfg.weight_decay))
+        opts.append(torch.optim.AdamW(params, lr=cfg.lr, weight_decay=cfg.weight_decay))
     return opts
+
+
+def build_plateau_scheduler(
+    optimizer: torch.optim.Optimizer, cfg: ExperimentConfig
+) -> torch.optim.lr_scheduler.ReduceLROnPlateau | None:
+    if not cfg.reduce_lr_on_plateau:
+        return None
+    return torch.optim.lr_scheduler.ReduceLROnPlateau(
+        optimizer,
+        mode="min",
+        factor=cfg.reduce_lr_factor,
+        patience=cfg.reduce_lr_patience,
+        min_lr=cfg.min_lr,
+    )
 
 
 def early_stopping_improved(

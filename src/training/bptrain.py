@@ -3,7 +3,7 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 from experiments.config import ExperimentConfig
-from .trainingutils import early_stopping_improved, BPModel
+from .trainingutils import build_plateau_scheduler, early_stopping_improved, BPModel
 from .evaluation import evaluate_bp
 from copy import deepcopy
 from typing import Optional, Tuple
@@ -17,7 +17,7 @@ def train_bp_one_epoch(
     model: BPModel,
     optimizer: torch.optim.Optimizer,
     dataloader: DataLoader,
-    device: str,
+    cfg: ExperimentConfig,
 ) -> Tuple[float, float]:
     """
     Train any standard backprop model for one epoch.
@@ -30,8 +30,8 @@ def train_bp_one_epoch(
     total_seen = 0
 
     for x, y in dataloader:
-        x = x.to(device, non_blocking=True)
-        y = y.to(device, non_blocking=True)
+        x = x.to(cfg.device, non_blocking=True)
+        y = y.to(cfg.device, non_blocking=True)
 
         optimizer.zero_grad(set_to_none=True)
 
@@ -66,9 +66,10 @@ def run_bp_training(
         }
     """
 
-    optimizer = torch.optim.Adam(
+    optimizer = torch.optim.AdamW(
         model.parameters(), lr=cfg.lr, weight_decay=cfg.weight_decay
     )
+    scheduler = build_plateau_scheduler(optimizer, cfg)
     best_val_loss = float("inf")
     best_state = None
     bad_epochs = 0
@@ -88,9 +89,12 @@ def run_bp_training(
 
     for epoch in range(1, cfg.epochs + 1):
         train_loss, train_acc = train_bp_one_epoch(
-            model, optimizer, train_loader, device=cfg.device
+            model, optimizer, train_loader, cfg=cfg
         )
         val_loss, val_acc = evaluate_bp(model, val_loader, device=cfg.device)
+        model.train()
+        if scheduler:
+            scheduler.step(val_loss)
         best_val_acc = max(best_val_acc, val_acc)
 
         metrics["bp"]["train_losses"].append(train_loss)
@@ -104,10 +108,12 @@ def run_bp_training(
         )
 
         if writer:
-            writer.add_scalars("bp/loss", {"train": train_loss, "val": val_loss}, epoch)
-            writer.add_scalars("bp/acc", {"train": train_acc, "val": val_acc}, epoch)
+            writer.add_scalar("bp/loss/train", train_loss, epoch)
+            writer.add_scalar("bp/loss/val", val_loss, epoch)
+            writer.add_scalar("bp/acc/train", train_acc, epoch)
+            writer.add_scalar("bp/acc/val", val_acc, epoch)
 
-        if cfg.early_stopping_enabled:
+        if cfg.early_stopping:
             if early_stopping_improved(
                 best_val_loss, val_loss, cfg.early_stopping_min_delta
             ):
@@ -124,8 +130,8 @@ def run_bp_training(
                     )
                     break
 
-            if best_state is not None:
-                model.load_state_dict(best_state)
+    if cfg.early_stopping and best_state is not None:
+        model.load_state_dict(best_state)
 
     test_loss, test_acc = evaluate_bp(model, test_loader, device=cfg.device)
     metrics["bp"]["test_losses"].append(test_loss)

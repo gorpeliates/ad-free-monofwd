@@ -3,6 +3,7 @@ from .trainingutils import (
     MonoFwdModel,
     early_stopping_improved,
     build_optimizers,
+    build_plateau_scheduler,
 )
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
@@ -96,6 +97,7 @@ def run_monofwd_training_ad(
         }
     """
     opts = build_optimizers(model, cfg)
+    schedulers = [build_plateau_scheduler(opt, cfg) for opt in opts]
     best_val_loss = float("inf")
     best_state = None
     bad_epochs = 0
@@ -131,6 +133,10 @@ def run_monofwd_training_ad(
         val_loss_ff, val_acc_ff, val_loss_bp, val_acc_bp = evaluate_monofwd(
             model, val_loader, device=cfg.device
         )
+        model.train()
+        for sched in schedulers:
+            if sched:
+                sched.step(val_loss_ff)
 
         best_val_acc_ff = max(best_val_acc_ff, val_acc_ff)
         best_val_acc_bp = max(best_val_acc_bp, val_acc_bp)
@@ -152,20 +158,16 @@ def run_monofwd_training_ad(
         )
 
         if writer:
-            writer.add_scalars(
-                "mono_ff/loss", {"train": train_loss_ff, "val": val_loss_ff}, epoch
-            )
-            writer.add_scalars(
-                "mono_ff/acc", {"train": train_acc_ff, "val": val_acc_ff}, epoch
-            )
-            writer.add_scalars(
-                "mono_bp/loss", {"train": train_loss_bp, "val": val_loss_bp}, epoch
-            )
-            writer.add_scalars(
-                "mono_bp/acc", {"train": train_acc_bp, "val": val_acc_bp}, epoch
-            )
+            writer.add_scalar("mono_ff/loss/train", train_loss_ff, epoch)
+            writer.add_scalar("mono_ff/loss/val", val_loss_ff, epoch)
+            writer.add_scalar("mono_ff/acc/train", train_acc_ff, epoch)
+            writer.add_scalar("mono_ff/acc/val", val_acc_ff, epoch)
+            writer.add_scalar("mono_bp/loss/train", train_loss_bp, epoch)
+            writer.add_scalar("mono_bp/loss/val", val_loss_bp, epoch)
+            writer.add_scalar("mono_bp/acc/train", train_acc_bp, epoch)
+            writer.add_scalar("mono_bp/acc/val", val_acc_bp, epoch)
 
-        if cfg.early_stopping_enabled:
+        if cfg.early_stopping:
             if early_stopping_improved(
                 best_val_loss, val_loss_ff, cfg.early_stopping_min_delta
             ):
@@ -182,8 +184,8 @@ def run_monofwd_training_ad(
                     )
                     break
 
-            if best_state is not None:
-                model.load_state_dict(best_state)
+    if best_state is not None:
+        model.load_state_dict(best_state)
 
     test_loss_ff, test_acc_ff, test_loss_bp, test_acc_bp = evaluate_monofwd(
         model, test_loader, device=cfg.device
