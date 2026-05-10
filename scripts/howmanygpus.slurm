@@ -3,8 +3,8 @@
 #SBATCH --output=howmanygpus.out
 #SBATCH --time=00:10:00
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=1
-#SBATCH --gpus-per-task=2
+#SBATCH --cpus-per-task=8
+#SBATCH --gpus-per-task=1
 #SBATCH --partition=gpu-a100-small
 #SBATCH --mem-per-cpu=1G
 #SBATCH --account=Education-EEMCS-Courses-CSE3000         

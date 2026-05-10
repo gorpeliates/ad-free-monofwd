@@ -56,6 +56,12 @@ def parse_args() -> list[ExperimentConfig]:
         help="Number of perturbation directions P per block per step for MF+DD",
     )
     parser.add_argument(
+        "--scheduler_step_size",
+        type=int,
+        default=15,
+        help="Learning rate step scheduler: reduce LR by 0.1x every N epochs",
+    )
+    parser.add_argument(
         "--logdir",
         type=str,
         default="runs",

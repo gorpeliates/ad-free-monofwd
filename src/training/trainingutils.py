@@ -29,6 +29,18 @@ def build_optimizers(
     return opts
 
 
+def build_step_schedulers(
+    optimizers: List[torch.optim.Optimizer], cfg: ExperimentConfig
+) -> List[torch.optim.lr_scheduler.StepLR]:
+    schedulers = []
+    for opt in optimizers:
+        scheduler = torch.optim.lr_scheduler.StepLR(
+            opt, step_size=cfg.scheduler_step_size, gamma=0.1
+        )
+        schedulers.append(scheduler)
+    return schedulers
+
+
 def early_stopping_improved(
     best_loss: float, current_loss: float, min_delta: float
 ) -> bool:

@@ -175,6 +175,7 @@ def run_monofwd_training_dd(
     writer: Optional[SummaryWriter] = None,
 ) -> dict:
     """Runs MF+DD training. Same metrics structure as run_monofwd_training."""
+    initial_lr = cfg.lr
     best_val_loss = float("inf")
     best_state = None
     bad_epochs = 0
@@ -201,6 +202,7 @@ def run_monofwd_training_dd(
     }
 
     for epoch in range(1, cfg.epochs + 1):
+        cfg.lr = initial_lr * (0.1 ** (epoch // cfg.scheduler_step_size))
         train_loss_ff, train_acc_ff, train_loss_bp, train_acc_bp = (
             train_monofwd_one_epoch_dd(
                 model,

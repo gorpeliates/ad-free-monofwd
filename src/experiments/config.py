@@ -22,3 +22,4 @@ class ExperimentConfig:
     dd_eps: float = 1e-3
     dd_num_perturbations: int = 1
     tensorboard_logdir: str = "runs"
+    scheduler_step_size: int = 15

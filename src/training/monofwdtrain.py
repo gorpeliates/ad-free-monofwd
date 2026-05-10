@@ -3,6 +3,7 @@ from .trainingutils import (
     MonoFwdModel,
     early_stopping_improved,
     build_optimizers,
+    build_step_schedulers,
 )
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
@@ -96,6 +97,7 @@ def run_monofwd_training_ad(
         }
     """
     opts = build_optimizers(model, cfg)
+    schedulers = build_step_schedulers(opts, cfg)
     best_val_loss = float("inf")
     best_state = None
     bad_epochs = 0
@@ -163,6 +165,9 @@ def run_monofwd_training_ad(
             writer.add_scalar("mono_bp/loss/val", val_loss_bp, epoch)
             writer.add_scalar("mono_bp/acc/train", train_acc_bp, epoch)
             writer.add_scalar("mono_bp/acc/val", val_acc_bp, epoch)
+
+        for scheduler in schedulers:
+            scheduler.step()
 
         if cfg.early_stopping:
             if early_stopping_improved(

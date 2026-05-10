@@ -6,6 +6,7 @@ from experiments.config import ExperimentConfig
 from .trainingutils import (
     early_stopping_improved,
     BPModel,
+    build_step_schedulers,
 )
 from .evaluation import evaluate_bp
 from copy import deepcopy
@@ -70,6 +71,7 @@ def run_bp_training(
     """
 
     optimizer = torch.optim.Adam(model.parameters(), lr=cfg.lr)
+    schedulers = build_step_schedulers([optimizer], cfg)
     best_val_loss = float("inf")
     best_state = None
     bad_epochs = 0
@@ -110,6 +112,9 @@ def run_bp_training(
             writer.add_scalar("bp/loss/val", val_loss, epoch)
             writer.add_scalar("bp/acc/train", train_acc, epoch)
             writer.add_scalar("bp/acc/val", val_acc, epoch)
+
+        for scheduler in schedulers:
+            scheduler.step()
 
         if cfg.early_stopping:
             if early_stopping_improved(
