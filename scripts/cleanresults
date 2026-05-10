@@ -1,0 +1,9 @@
+#!/bin/bash
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+
+rm -rf "$PROJECT_ROOT"/runs
+rm -rf "$PROJECT_ROOT"/results
+rm -rf "$PROJECT_ROOT"/logs
+

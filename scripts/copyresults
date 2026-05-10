@@ -1,5 +1,8 @@
 #!/bin/bash
 
-scp -pr delftblue:~/ad-free-monofwd/runs ./
-scp -pr delftblue:~/ad-free-monofwd/results ./
-scp -pr delftblue:~/ad-free-monofwd/logs ./
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+
+scp -pr delftblue:~/ad-free-monofwd/runs "$PROJECT_ROOT"/
+scp -pr delftblue:~/ad-free-monofwd/results "$PROJECT_ROOT"/
+scp -pr delftblue:~/ad-free-monofwd/logs "$PROJECT_ROOT"/

@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 from torchvision.datasets import MNIST, FashionMNIST, CIFAR10, CIFAR100
 import torchvision.transforms as T
 
