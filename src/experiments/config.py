@@ -6,7 +6,6 @@ import torch
 class ExperimentConfig:
     dataset: str = "mnist"
     model: str = "mlp"  # mlp | cnn
-    pred_mode: str = "ff"  # ff | bp
     batch_size: int = 256
     epochs: int = 100
     lr: float = 1e-3

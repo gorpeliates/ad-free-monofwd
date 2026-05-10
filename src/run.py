@@ -18,7 +18,6 @@ def parse_args() -> list[ExperimentConfig]:
         "--dataset", type=str, nargs="+", default=["mnist"], choices=[*DATASETS, "all"]
     )
     parser.add_argument("--model", type=str, default="mlp", choices=["mlp", "cnn"])
-    parser.add_argument("--pred_mode", type=str, default="ff", choices=["ff", "bp"])
     parser.add_argument("--batch_size", type=int, default=256)
     parser.add_argument("--epochs", type=int, default=100)
     parser.add_argument("--lr", type=float, default=1e-3)
