@@ -58,7 +58,7 @@ def parse_args() -> list[ExperimentConfig]:
     parser.add_argument(
         "--scheduler_step_size",
         type=int,
-        default=15,
+        default=20,
         help="Learning rate step scheduler: reduce LR by 0.1x every N epochs",
     )
     parser.add_argument(

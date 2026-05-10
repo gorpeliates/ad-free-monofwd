@@ -31,12 +31,17 @@ def build_optimizers(
 
 def build_step_schedulers(
     optimizers: List[torch.optim.Optimizer], cfg: ExperimentConfig
-) -> List[torch.optim.lr_scheduler.StepLR]:
+) -> List[torch.optim.lr_scheduler.LRScheduler]:
     schedulers = []
     for opt in optimizers:
-        scheduler = torch.optim.lr_scheduler.StepLR(
-            opt, step_size=cfg.scheduler_step_size, gamma=0.1
-        )
+        if cfg.scheduler == "cosine":
+            scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+                opt, T_max=cfg.epochs
+            )
+        else:
+            scheduler = torch.optim.lr_scheduler.StepLR(
+                opt, step_size=cfg.scheduler_step_size, gamma=0.1
+            )
         schedulers.append(scheduler)
     return schedulers
 

@@ -26,8 +26,6 @@ def build_dataloaders(
             [
                 T.ToTensor(),
                 T.Normalize((0.4914, 0.4822, 0.4465), (0.2470, 0.2435, 0.2616)),
-                T.RandomHorizontalFlip(0.5),
-                T.RandomCrop(32, padding=4),
             ]
         )
     elif ds == "cifar100":
@@ -35,15 +33,30 @@ def build_dataloaders(
             [
                 T.ToTensor(),
                 T.Normalize((0.5071, 0.4867, 0.4408), (0.2675, 0.2565, 0.2761)),
-                T.RandomHorizontalFlip(0.5),
-                T.RandomCrop(32, padding=4),
+            ]
+        )
+    elif ds == "mnist":
+        transform = T.Compose(
+            [
+                T.ToTensor(),
+                T.Normalize((0.1307,), (0.3081,)),
+            ]
+        )
+    elif ds == "fashionmnist":
+        transform = T.Compose(
+            [
+                T.ToTensor(),
+                T.Normalize((0.2860,), (0.3530,)),
             ]
         )
 
-    # in_channels 1 for grayscale, 3 for RGB
     if ds == "mnist":
-        train_set = MNIST(cfg.data_root, train=True, download=False, transform=transform)
-        test_set = MNIST(cfg.data_root, train=False, download=False, transform=transform)
+        train_set = MNIST(
+            cfg.data_root, train=True, download=False, transform=transform
+        )
+        test_set = MNIST(
+            cfg.data_root, train=False, download=False, transform=transform
+        )
         in_channels, num_classes = 1, 10
     elif ds == "fashionmnist":
         train_set = FashionMNIST(

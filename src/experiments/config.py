@@ -7,7 +7,7 @@ class ExperimentConfig:
     dataset: str = "mnist"
     model: str = "mlp"  # mlp | cnn
     pred_mode: str = "ff"  # ff | bp
-    batch_size: int = 512
+    batch_size: int = 256
     epochs: int = 100
     lr: float = 1e-3
     device: str = "cuda" if torch.cuda.is_available() else "cpu"
@@ -22,4 +22,5 @@ class ExperimentConfig:
     dd_eps: float = 1e-3
     dd_num_perturbations: int = 1
     tensorboard_logdir: str = "runs"
+    scheduler: str = "step"  # step | cosine
     scheduler_step_size: int = 15

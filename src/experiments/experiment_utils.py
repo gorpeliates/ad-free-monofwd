@@ -160,6 +160,8 @@ def run_experiment_cnn(cfg: ExperimentConfig) -> dict:
     model_mono.to(cfg.device)
     model_bp.to(cfg.device)
 
+    cfg.scheduler = "cosine"
+
     run_name = f"cnn_{cfg.dataset}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
     writer = SummaryWriter(log_dir=f"{cfg.tensorboard_logdir}/{run_name}")
     logger.info(f"TensorBoard logs: {cfg.tensorboard_logdir}/{run_name}")
