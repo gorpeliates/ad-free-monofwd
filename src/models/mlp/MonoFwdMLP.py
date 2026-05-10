@@ -1,5 +1,3 @@
-# MONO-FORWARD MLP
-
 import torch
 from torch import nn
 import torch.nn.functional as F
@@ -16,14 +14,14 @@ class MonoFwdLinearBlock(nn.Module):
 
         m = num_classes
         n = out_dim
-        self.M = nn.Parameter(torch.empty(m, n))
+        self.M = nn.Parameter(torch.empty(n, m))
         nn.init.kaiming_uniform_(self.M, a=math.sqrt(5))
 
         self.activation = F.relu if activation == "relu" else F.tanh
 
     def forward(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         a = self.activation(self.linear(x))
-        g = a @ self.M.T
+        g = a @ self.M
         return a, g
 
 
@@ -39,7 +37,9 @@ class MonoFwdMLP(nn.Module):
         dims = [input_dim] + hidden_dims
         self.blocks = nn.ModuleList(
             [
-                MonoFwdLinearBlock(dims[i], dims[i + 1], num_classes, activation=activation)
+                MonoFwdLinearBlock(
+                    dims[i], dims[i + 1], num_classes, activation=activation
+                )
                 for i in range(len(hidden_dims))
             ]
         )
@@ -72,10 +72,9 @@ class MonoFwdMLP(nn.Module):
         for block in self.blocks:
             block: MonoFwdLinearBlock
             a, g = block.forward(h)
-            losses.append(F.cross_entropy(g, y))  # this already does softmax
+            losses.append(F.cross_entropy(g, y))
             logits.append(g)
-            # we detach the activations to prevent gradients from flowing back through the previous blocks
-            # this is the key for training each block independently
+
             h = a.detach()
 
         return losses, logits

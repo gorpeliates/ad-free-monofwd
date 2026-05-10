@@ -15,37 +15,30 @@ class MonoFwdConvBlock(nn.Module):
         super().__init__()
         self.conv = nn.Conv2d(in_ch, out_ch, kernel_size=3, padding=1)
 
-        # proj matrix for goodness scores, use global avg pool
-        # TODO consider other flattening methods
         m = num_classes
         n = out_ch
-        self.M = nn.Parameter(torch.empty(m, n))
+        self.M = nn.Parameter(torch.empty(n, m))
         nn.init.kaiming_uniform_(self.M, a=math.sqrt(5))
-
+        self.bn = nn.BatchNorm2d(out_ch)
         self.num_classes = num_classes
 
     def forward(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         """
-        Forward pass, conv layer, optional BN, ReLU and average pooling
+        Forward pass, conv layer, BN, ReLU and max pooling
         """
         x = self.conv(x)
+        x = self.bn(x)
         a = F.relu(x)
-        x = F.avg_pool2d(a, kernel_size=2)  # Average pooling for the next layer
+        x = F.max_pool2d(a, kernel_size=2)  # Average pooling for the next layer
 
-        # Global average pool for the goodness score calculation
-        # dimensions are (batch_size, out_ch, H, W)
-        # when we global avg pool, we essentially map it to (batch_size, out_ch,1,1)
-        # when we flatten at axis 1 (which is the out_ch) we get (batch_size, out_ch)
         pooled_a = F.adaptive_avg_pool2d(a, (1, 1)).flatten(1)
-        g = pooled_a @ self.M.T
+        g = pooled_a @ self.M
 
         return x, g
 
 
 class MonoFwdCNN(nn.Module):
-    def __init__(
-        self, in_ch: int, channels: List[int], num_classes: int
-    ):
+    def __init__(self, in_ch: int, channels: List[int], num_classes: int):
         super().__init__()
         self.num_classes = num_classes
         dims = [in_ch] + channels
@@ -81,12 +74,11 @@ class MonoFwdCNN(nn.Module):
         BP mode uses the goodness scores from the last block.
         """
         h = x
-        all_logits = []
-
+        all_goodness = []
         for block in self.blocks:
             block: MonoFwdConvBlock
             a, g = block.forward(h)
-            all_logits.append(g)
-            h = a
+            all_goodness.append(g)
+            h = a.detach()
 
-        return torch.stack(all_logits, dim=0).sum(dim=0), all_logits[-1]
+        return torch.stack(all_goodness, dim=0).sum(dim=0), all_goodness[-1]
