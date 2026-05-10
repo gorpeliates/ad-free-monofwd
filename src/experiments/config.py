@@ -20,7 +20,6 @@ class ExperimentConfig:
     early_stopping_min_delta: float = 1e-4
     training_method: str = "autodiff"  # autodiff | dd
     dd_eps: float = 1e-3
-    dd_num_perturbations: int = 1
+    dd_num_perturbations: int = 2
     tensorboard_logdir: str = "runs"
-    scheduler: str = "step"  # step | cosine
-    scheduler_step_size: int = 15
+    scheduler_step_size: int = 20

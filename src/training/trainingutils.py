@@ -34,7 +34,7 @@ def build_step_schedulers(
 ) -> List[torch.optim.lr_scheduler.LRScheduler]:
     schedulers = []
     for opt in optimizers:
-        if cfg.scheduler == "cosine":
+        if cfg.model == "cnn":
             scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
                 opt, T_max=cfg.epochs
             )

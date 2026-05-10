@@ -52,7 +52,7 @@ def parse_args() -> list[ExperimentConfig]:
     parser.add_argument(
         "--dd_num_perturbations",
         type=int,
-        default=1,
+        default=2,
         help="Number of perturbation directions P per block per step for MF+DD",
     )
     parser.add_argument(
