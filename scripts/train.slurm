@@ -10,6 +10,8 @@
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
+cd "$PROJECT_ROOT"
+
 module load 2025
 module load cuda/12.9
 
