@@ -6,4 +6,3 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 cd "$PROJECT_ROOT"
 
 uv run python "$SCRIPT_DIR/download_datasets.py"
-sbatch "$SCRIPT_DIR/train.slurm"

@@ -1,9 +1,0 @@
-
-Mono FWD page 6:
-
-For CNN experiments, a convolutional network with four convolutional layers was used. Each convolutional layer
-applies a kernel size of 3 × 3 with padding to preserve spatial dimensions, followed by ReLU activation and average
-pooling to reduce feature map size. Specifically, the architecture consists of 64, 128, 256, and 512 feature maps in the
-respective layers, culminating in a fully connected layer of size 512 × 2 × 2, which maps to the output classes. All
-networks are optimized with Adaptive Moment Estimation (Adam) [38]. Hyperparameters, such as learning rate and
-batch size, were fine-tuned based on testing set performance.
