@@ -42,31 +42,31 @@ def build_dataloaders(
 
     # in_channels 1 for grayscale, 3 for RGB
     if ds == "mnist":
-        train_set = MNIST(cfg.data_root, train=True, download=True, transform=transform)
-        test_set = MNIST(cfg.data_root, train=False, download=True, transform=transform)
+        train_set = MNIST(cfg.data_root, train=True, download=False, transform=transform)
+        test_set = MNIST(cfg.data_root, train=False, download=False, transform=transform)
         in_channels, num_classes = 1, 10
     elif ds == "fashionmnist":
         train_set = FashionMNIST(
-            cfg.data_root, train=True, download=True, transform=transform
+            cfg.data_root, train=True, download=False, transform=transform
         )
         test_set = FashionMNIST(
-            cfg.data_root, train=False, download=True, transform=transform
+            cfg.data_root, train=False, download=False, transform=transform
         )
         in_channels, num_classes = 1, 10
     elif ds == "cifar10":
         train_set = CIFAR10(
-            cfg.data_root, train=True, download=True, transform=transform
+            cfg.data_root, train=True, download=False, transform=transform
         )
         test_set = CIFAR10(
-            cfg.data_root, train=False, download=True, transform=transform
+            cfg.data_root, train=False, download=False, transform=transform
         )
         in_channels, num_classes = 3, 10
     elif ds == "cifar100":
         train_set = CIFAR100(
-            cfg.data_root, train=True, download=True, transform=transform
+            cfg.data_root, train=True, download=False, transform=transform
         )
         test_set = CIFAR100(
-            cfg.data_root, train=False, download=True, transform=transform
+            cfg.data_root, train=False, download=False, transform=transform
         )
         in_channels, num_classes = 3, 100
     else:
