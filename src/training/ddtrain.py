@@ -1,7 +1,6 @@
 from .trainingutils import (
     MonoFwdModel,
     early_stopping_improved,
-    LinearWarmupScheduler,
 )
 from .evaluation import evaluate_monofwd
 from copy import deepcopy
@@ -32,15 +31,11 @@ def _get_pre_proj_activation(
 
     if isinstance(block, MonoFwdConvBlock):
         x = block.conv(h)
-        x = block.bn(x)
         a = F.relu(x)
-        a = block.dropout(a)
         next_h = F.avg_pool2d(a, kernel_size=2)
         pre_proj_a = F.adaptive_avg_pool2d(a, (1, 1)).flatten(1)
     elif isinstance(block, MonoFwdLinearBlock):
-        z = block.norm(block.linear(h))
-        pre_proj_a = block.activation(z)
-        pre_proj_a = block.dropout(pre_proj_a)
+        pre_proj_a = block.activation(block.linear(h))
         next_h = pre_proj_a
     else:
         raise TypeError(f"Unsupported block type: {type(block)}")
@@ -53,8 +48,6 @@ def train_monofwd_one_epoch_dd(
     model: MonoFwdModel,
     dataloader: DataLoader,
     cfg: ExperimentConfig,
-    current_lr: float | None = None,
-    warmup_scheduler: LinearWarmupScheduler | None = None,
 ) -> tuple[float, float, float, float]:
     """
     Train any MonoFwd model for one epoch using directional-derivative updates.
@@ -70,7 +63,7 @@ def train_monofwd_one_epoch_dd(
 
     eps = cfg.dd_eps
     P = cfg.dd_num_perturbations
-    lr = current_lr if current_lr is not None else cfg.lr
+    lr = cfg.lr
 
     total_loss_ff = 0.0
     total_correct_ff = 0
@@ -83,18 +76,6 @@ def train_monofwd_one_epoch_dd(
         y: torch.Tensor
         x = x.to(cfg.device, non_blocking=True)
         y = y.to(cfg.device, non_blocking=True)
-
-        # Apply learning rate warmup
-        adjusted_lr = lr
-        if warmup_scheduler:
-            if warmup_scheduler.current_step < warmup_scheduler.warmup_steps:
-                warmup_factor = (
-                    warmup_scheduler.current_step / warmup_scheduler.warmup_steps
-                )
-                adjusted_lr = lr * warmup_factor
-                warmup_scheduler.current_step += 1
-            else:
-                adjusted_lr = lr
 
         # flatten for mlp, keep spatial for cnn
         h = x.flatten(1) if isinstance(model, MonoFwdMLP) else x
@@ -130,7 +111,7 @@ def train_monofwd_one_epoch_dd(
                 grad_acc_W += dd * v_hat
 
             # apply W update
-            _apply_perturbation(w_params, -(adjusted_lr * n_W / P) * grad_acc_W)
+            _apply_perturbation(w_params, -(lr * n_W / P) * grad_acc_W)
 
             # --------------- M update -----------------------
 
@@ -152,7 +133,7 @@ def train_monofwd_one_epoch_dd(
                 dd = (L_plus - L_minus) / (2.0 * eps)
                 grad_acc_M += dd * u_hat
 
-            block.M.data -= (adjusted_lr * n_M / P) * grad_acc_M.view_as(block.M)
+            block.M.data -= (lr * n_M / P) * grad_acc_M.view_as(block.M)
 
             #  collect logits and advance h to next block
             g_final = pre_proj_a @ block.M.T
@@ -199,12 +180,6 @@ def run_monofwd_training_dd(
     bad_epochs = 0
     best_val_acc_ff = 0.0
     best_val_acc_bp = 0.0
-    current_lr = cfg.lr
-    warmup_scheduler = (
-        LinearWarmupScheduler(None, cfg.warmup_steps, cfg.lr)
-        if cfg.warmup_steps > 0
-        else None
-    )
     metrics = {
         "mono_ff": {
             "train_losses": [],
@@ -231,8 +206,6 @@ def run_monofwd_training_dd(
                 model,
                 train_loader,
                 cfg,
-                current_lr=current_lr,
-                warmup_scheduler=warmup_scheduler,
             )
         )
         val_loss_ff, val_acc_ff, val_loss_bp, val_acc_bp = evaluate_monofwd(

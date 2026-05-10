@@ -45,7 +45,6 @@ def build_model(cfg: ExperimentConfig, in_channels: int, num_classes: int) -> nn
             in_ch=in_channels,
             channels=channels,
             num_classes=num_classes,
-            use_bn=cfg.use_bn,
         )
 
     raise ValueError(f"Unknown model type: {cfg.model}")
@@ -91,7 +90,6 @@ def run_experiment_mlp(cfg: ExperimentConfig) -> dict:
         hidden_dims=hidden_dims,
         num_classes=num_classes,
         activation=cfg.activation,
-        dropout_rate=cfg.dropout_rate,
     )
 
     model_bp = BPMLP(
@@ -99,7 +97,6 @@ def run_experiment_mlp(cfg: ExperimentConfig) -> dict:
         hidden_dims=hidden_dims,
         num_classes=num_classes,
         activation=cfg.activation,
-        dropout_rate=cfg.dropout_rate,
     )
 
     model_mono.to(cfg.device)
@@ -152,16 +149,12 @@ def run_experiment_cnn(cfg: ExperimentConfig) -> dict:
         in_ch=in_channels,
         channels=channels,
         num_classes=num_classes,
-        use_bn=cfg.use_bn,
-        dropout_rate=cfg.dropout_rate,
     )
 
     model_bp = BPCNN(
         in_ch=in_channels,
         channels=channels,
         num_classes=num_classes,
-        use_bn=cfg.use_bn,
-        dropout_rate=cfg.dropout_rate,
     )
 
     model_mono.to(cfg.device)

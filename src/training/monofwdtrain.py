@@ -3,8 +3,6 @@ from .trainingutils import (
     MonoFwdModel,
     early_stopping_improved,
     build_optimizers,
-    build_plateau_scheduler,
-    build_warmup_scheduler,
 )
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
@@ -23,7 +21,6 @@ def train_monofwd_one_epoch_autodiff(
     optimizers: List[torch.optim.Optimizer],
     dataloader: DataLoader,
     device: str,
-    warmup_schedulers: List = None,
 ) -> Tuple[float, float, float, float]:
     """
     Train any MonoFwd model for one epoch using local autodiff updates per block.
@@ -54,10 +51,8 @@ def train_monofwd_one_epoch_autodiff(
         for loss in losses:
             loss.backward()
 
-        for i, opt in enumerate(optimizers):
+        for opt in optimizers:
             opt.step()
-            if warmup_schedulers and warmup_schedulers[i]:
-                warmup_schedulers[i].step()
 
         with torch.no_grad():
             final_goodness_ff = torch.stack(logits_per_layer, dim=0).sum(dim=0)
@@ -101,10 +96,6 @@ def run_monofwd_training_ad(
         }
     """
     opts = build_optimizers(model, cfg)
-    warmup_schedulers = [
-        build_warmup_scheduler(opt, cfg.warmup_steps, cfg.lr) for opt in opts
-    ]
-    schedulers = [build_plateau_scheduler(opt, cfg) for opt in opts]
     best_val_loss = float("inf")
     best_state = None
     bad_epochs = 0
@@ -138,17 +129,12 @@ def run_monofwd_training_ad(
                 opts,
                 train_loader,
                 device=cfg.device,
-                warmup_schedulers=warmup_schedulers,
             )
         )
         val_loss_ff, val_acc_ff, val_loss_bp, val_acc_bp = evaluate_monofwd(
             model, val_loader, device=cfg.device
         )
         model.train()
-        for sched in schedulers:
-            if sched:
-                sched.step(val_loss_ff)
-
         best_val_acc_ff = max(best_val_acc_ff, val_acc_ff)
         best_val_acc_bp = max(best_val_acc_bp, val_acc_bp)
 

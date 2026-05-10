@@ -4,10 +4,8 @@ from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 from experiments.config import ExperimentConfig
 from .trainingutils import (
-    build_plateau_scheduler,
     early_stopping_improved,
     BPModel,
-    build_warmup_scheduler,
 )
 from .evaluation import evaluate_bp
 from copy import deepcopy
@@ -23,7 +21,6 @@ def train_bp_one_epoch(
     optimizer: torch.optim.Optimizer,
     dataloader: DataLoader,
     cfg: ExperimentConfig,
-    warmup_scheduler=None,
 ) -> Tuple[float, float]:
     """
     Train any standard backprop model for one epoch.
@@ -46,9 +43,6 @@ def train_bp_one_epoch(
 
         loss.backward()
         optimizer.step()
-
-        if warmup_scheduler:
-            warmup_scheduler.step()
 
         total_loss += float(loss.item()) * x.size(0)
         total_correct += int((logits.argmax(dim=1) == y).sum().item())
@@ -75,11 +69,7 @@ def run_bp_training(
         }
     """
 
-    optimizer = torch.optim.AdamW(
-        model.parameters(), lr=cfg.lr, weight_decay=cfg.weight_decay
-    )
-    warmup_scheduler = build_warmup_scheduler(optimizer, cfg.warmup_steps, cfg.lr)
-    scheduler = build_plateau_scheduler(optimizer, cfg)
+    optimizer = torch.optim.Adam(model.parameters(), lr=cfg.lr)
     best_val_loss = float("inf")
     best_state = None
     bad_epochs = 0
@@ -99,12 +89,10 @@ def run_bp_training(
 
     for epoch in range(1, cfg.epochs + 1):
         train_loss, train_acc = train_bp_one_epoch(
-            model, optimizer, train_loader, cfg=cfg, warmup_scheduler=warmup_scheduler
+            model, optimizer, train_loader, cfg=cfg
         )
         val_loss, val_acc = evaluate_bp(model, val_loader, device=cfg.device)
         model.train()
-        if scheduler:
-            scheduler.step(val_loss)
         best_val_acc = max(best_val_acc, val_acc)
 
         metrics["bp"]["train_losses"].append(train_loss)
