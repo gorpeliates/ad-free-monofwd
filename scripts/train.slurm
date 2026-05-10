@@ -7,7 +7,10 @@
 #SBATCH --mem-per-gpu=16G
 #SBATCH --account=Education-EEMCS-Courses-CSE3000
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
 module load 2025
 module load cuda/12.9
 
-srun uv run --no-sync python src/run.py --logdir runs "$@"
+srun uv run --no-sync python "$PROJECT_ROOT/src/run.py" --logdir "$PROJECT_ROOT/runs" "$@"
