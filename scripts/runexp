@@ -3,7 +3,7 @@
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-DATASETS=("cifar10" "cifar100" "imagenet" "all")
+DATASETS=("cifar10" "cifar100" "mnist" "fashionmnist" "all")
 MODEL=${1:-cnn}
 
 mkdir -p "$PROJECT_ROOT/runs/logs"
