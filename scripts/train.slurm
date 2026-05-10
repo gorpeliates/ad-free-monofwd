@@ -12,5 +12,4 @@
 module load 2025                      
 module load cuda/12.9     
 
-uv sync
-srun uv run --no-sync src/run.py --logdir runs
+srun uv run --no-sync python src/run.py --logdir runs
