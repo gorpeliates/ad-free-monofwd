@@ -12,7 +12,9 @@ echo "Submitting jobs for datasets: ${DATASETS[@]} with model: $MODEL"
 
 for dataset in "${DATASETS[@]}"; do
     echo "Submitting job for dataset: $dataset"
-    sbatch "$PROJECT_ROOT/scripts/train.slurm" "$dataset" "$MODEL"
+    sbatch --job-name="monofwd_train_${dataset}" \
+           --output="$PROJECT_ROOT/runs/logs/train_${dataset}_%j.out" \
+           "$PROJECT_ROOT/scripts/train.slurm" "$dataset" "$MODEL"
 done
 
 echo "All jobs submitted!" 

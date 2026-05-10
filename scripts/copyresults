@@ -1,0 +1,5 @@
+#!/bin/bash
+
+scp -pr delftblue:~/ad-free-monofwd/runs ./
+scp -pr delftblue:~/ad-free-monofwd/results ./
+scp -pr delftblue:~/ad-free-monofwd/logs ./
