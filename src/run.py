@@ -18,8 +18,8 @@ def parse_args() -> list[ExperimentConfig]:
         "--dataset", type=str, nargs="+", default=["mnist"], choices=[*DATASETS, "all"]
     )
     parser.add_argument("--model", type=str, default="mlp", choices=["mlp", "cnn"])
-    parser.add_argument("--batch_size", type=int, default=256)
-    parser.add_argument("--epochs", type=int, default=100)
+    parser.add_argument("--batch_size", type=int, default=128)
+    parser.add_argument("--epochs", type=int, default=200)
     parser.add_argument("--lr", type=float, default=1e-3)
     parser.add_argument(
         "--device", type=str, default="cuda" if torch.cuda.is_available() else "cpu"
@@ -36,7 +36,7 @@ def parse_args() -> list[ExperimentConfig]:
         dest="early_stopping",
         help="Disable early stopping",
     )
-    parser.add_argument("--early_stopping_patience", type=int, default=10)
+    parser.add_argument("--early_stopping_patience", type=int, default=20)
     parser.add_argument("--early_stopping_min_delta", type=float, default=1e-4)
     parser.add_argument(
         "--training_method",
@@ -57,7 +57,7 @@ def parse_args() -> list[ExperimentConfig]:
     parser.add_argument(
         "--scheduler_step_size",
         type=int,
-        default=20,
+        default=30,
         help="Learning rate step scheduler: reduce LR by 0.1x every N epochs",
     )
     parser.add_argument(
