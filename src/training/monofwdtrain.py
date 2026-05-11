@@ -36,6 +36,7 @@ def train_monofwd_one_epoch_autodiff(
     total_loss_bp = 0.0
     total_correct_bp = 0
     total_seen = 0
+    num_batches = 0
 
     for x, y in dataloader:
         x: torch.Tensor
@@ -59,22 +60,19 @@ def train_monofwd_one_epoch_autodiff(
             final_goodness_ff = torch.stack(logits_per_layer, dim=0).sum(dim=0)
             final_goodness_bp = logits_per_layer[-1]
 
-            total_loss_ff += float(
-                F.cross_entropy(final_goodness_ff, y).item()
-            ) * x.size(0)
+            total_loss_ff += float(F.cross_entropy(final_goodness_ff, y).item())
             total_correct_ff += int((final_goodness_ff.argmax(dim=1) == y).sum().item())
 
-            total_loss_bp += float(
-                F.cross_entropy(final_goodness_bp, y).item()
-            ) * x.size(0)
+            total_loss_bp += float(F.cross_entropy(final_goodness_bp, y).item())
             total_correct_bp += int((final_goodness_bp.argmax(dim=1) == y).sum().item())
 
             total_seen += x.size(0)
+            num_batches += 1
 
     return (
-        total_loss_ff / total_seen,
+        total_loss_ff / num_batches,
         total_correct_ff / total_seen,
-        total_loss_bp / total_seen,
+        total_loss_bp / num_batches,
         total_correct_bp / total_seen,
     )
 

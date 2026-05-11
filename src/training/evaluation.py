@@ -20,25 +20,29 @@ def evaluate_monofwd(
     total_loss_bp = 0.0
     total_correct_bp = 0
     total_seen = 0
+    num_batches = 0
 
     for x, y in loader:
         x = x.to(device, non_blocking=True)
         y = y.to(device, non_blocking=True)
 
         logits_ff, logits_bp = model.predict_logits(x)
+        # default reduction='mean' gives average loss per sample in batch
         loss_ff = F.cross_entropy(logits_ff, y)
         loss_bp = F.cross_entropy(logits_bp, y)
 
-        total_loss_ff += float(loss_ff.item()) * x.size(0)
+        total_loss_ff += float(loss_ff.item())
         total_correct_ff += int((logits_ff.argmax(dim=1) == y).sum().item())
-        total_loss_bp += float(loss_bp.item()) * x.size(0)
+        total_loss_bp += float(loss_bp.item())
         total_correct_bp += int((logits_bp.argmax(dim=1) == y).sum().item())
         total_seen += x.size(0)
+        # paper reports average loss per batch, so we count batches instead of samples for averaging
+        num_batches += 1
 
     return (
-        total_loss_ff / total_seen,
+        total_loss_ff / num_batches,
         total_correct_ff / total_seen,
-        total_loss_bp / total_seen,
+        total_loss_bp / num_batches,
         total_correct_bp / total_seen,
     )
 
@@ -53,6 +57,7 @@ def evaluate_bp(
     total_loss = 0.0
     total_correct = 0
     total_seen = 0
+    num_batches = 0
 
     for x, y in loader:
         x = x.to(device, non_blocking=True)
@@ -60,8 +65,9 @@ def evaluate_bp(
 
         logits = model(x)
         loss = F.cross_entropy(logits, y)
-        total_loss += float(loss.item()) * x.size(0)
+        total_loss += float(loss.item())
         total_correct += int((logits.argmax(dim=1) == y).sum().item())
         total_seen += x.size(0)
+        num_batches += 1
 
-    return total_loss / total_seen, total_correct / total_seen
+    return total_loss / num_batches, total_correct / total_seen

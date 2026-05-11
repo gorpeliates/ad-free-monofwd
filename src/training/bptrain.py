@@ -32,6 +32,7 @@ def train_bp_one_epoch(
     total_loss = 0.0
     total_correct = 0
     total_seen = 0
+    num_batches = 0
 
     for x, y in dataloader:
         x = x.to(cfg.device, non_blocking=True)
@@ -45,11 +46,12 @@ def train_bp_one_epoch(
         loss.backward()
         optimizer.step()
 
-        total_loss += float(loss.item()) * x.size(0)
+        total_loss += float(loss.item())
         total_correct += int((logits.argmax(dim=1) == y).sum().item())
         total_seen += x.size(0)
+        num_batches += 1
 
-    return total_loss / total_seen, total_correct / total_seen
+    return total_loss / num_batches, total_correct / total_seen
 
 
 def run_bp_training(
