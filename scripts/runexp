@@ -4,7 +4,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 DATASETS=("mnist" "fashionmnist" "cifar10")
-MODELS=("cnn""mlp")
+MODELS=("cnn" "mlp")
 
 mkdir -p "$PROJECT_ROOT/runs/logs"
 
