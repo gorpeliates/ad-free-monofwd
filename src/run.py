@@ -61,6 +61,13 @@ def parse_args() -> list[ExperimentConfig]:
         help="Learning rate step scheduler: reduce LR by 0.1x every N epochs",
     )
     parser.add_argument(
+        "--optimizer",
+        type=str,
+        default="adam",
+        choices=["adam", "sgd"],
+        help="Optimizer to use (default: adam)",
+    )
+    parser.add_argument(
         "--logdir",
         type=str,
         default="runs",
@@ -94,7 +101,10 @@ if __name__ == "__main__":
         history = run_experiment(config)
 
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        history_file = results_dir / f"{config.model}_{config.dataset}_{timestamp}.json"
+        opt_tag = f"{config.optimizer}_lr{config.lr}_bs{config.batch_size}"
+        if config.model == "mlp":
+            opt_tag += f"_step{config.scheduler_step_size}"
+        history_file = results_dir / f"{config.model}_{config.dataset}_{opt_tag}_{timestamp}.json"
 
         with open(history_file, "w") as f:
             json.dump(history, f, indent=2)

@@ -25,7 +25,10 @@ def build_optimizers(
 ) -> List[torch.optim.Optimizer]:
     opts = []
     for params in block_parameter_groups(model):
-        opts.append(torch.optim.Adam(params, lr=cfg.lr))
+        if cfg.optimizer == "sgd":
+            opts.append(torch.optim.SGD(params, lr=cfg.lr, momentum=0.9))
+        else:
+            opts.append(torch.optim.Adam(params, lr=cfg.lr))
     return opts
 
 

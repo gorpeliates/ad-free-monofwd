@@ -72,7 +72,10 @@ def run_bp_training(
         }
     """
 
-    optimizer = torch.optim.Adam(model.parameters(), lr=cfg.lr)
+    if cfg.optimizer == "sgd":
+        optimizer = torch.optim.SGD(model.parameters(), lr=cfg.lr, momentum=0.9)
+    else:
+        optimizer = torch.optim.Adam(model.parameters(), lr=cfg.lr)
     schedulers = build_step_schedulers([optimizer], cfg)
     best_val_loss = float("inf")
     best_state = None

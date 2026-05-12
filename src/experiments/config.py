@@ -22,3 +22,4 @@ class ExperimentConfig:
     dd_num_perturbations: int = 2
     tensorboard_logdir: str = "runs"
     scheduler_step_size: int = 30
+    optimizer: str = "adam"  # adam | sgd
