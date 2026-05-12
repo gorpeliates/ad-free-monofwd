@@ -23,3 +23,19 @@ class ExperimentConfig:
     tensorboard_logdir: str = "runs"
     scheduler_step_size: int = 30
     optimizer: str = "adam"  # adam | sgd
+
+    def run_name(self, timestamp: str) -> str:
+        base = f"{self.model}_{self.dataset}"
+        if self.model == "mlp":
+            base += f"_step{self.scheduler_step_size}"
+
+        if self.training_method == "dd":
+            parts = f"dd_{base}_eps{self.dd_eps}_P{self.dd_num_perturbations}_{self.optimizer}_lr{self.lr}_bs{self.batch_size}"
+        elif self.training_method == "autodiff":
+            parts = f"autodiff_{base}_{self.optimizer}_lr{self.lr}_bs{self.batch_size}"
+        elif self.training_method == "backprop":
+            parts = f"bp_{base}_{self.optimizer}_lr{self.lr}_bs{self.batch_size}"
+        else:
+            parts = f"all_{base}_{self.optimizer}_lr{self.lr}_bs{self.batch_size}"
+
+        return f"{parts}_{timestamp}"

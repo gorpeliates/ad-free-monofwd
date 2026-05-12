@@ -4,13 +4,12 @@ from pathlib import Path
 from experiments.config import ExperimentConfig
 
 
-def setup_logging(cfg: ExperimentConfig) -> str:
+def setup_logging(cfg: ExperimentConfig, run_name: str) -> str:
     """Set up logging to both file and console. Returns the log file path."""
     log_dir = Path("logs")
     log_dir.mkdir(exist_ok=True)
 
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    log_file = log_dir / f"{cfg.model}_experiment_{timestamp}.log"
+    log_file = log_dir / f"{run_name}.log"
 
     # Configure the root logger so all modules (training.*, experiments.*) share these handlers.
     logger = logging.getLogger()

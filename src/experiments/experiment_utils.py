@@ -8,7 +8,6 @@ from models.mlp.MonoFwdMLP import MonoFwdMLP
 from experiments.dataset_utils import build_dataloaders
 from experiments.config import ExperimentConfig
 from log_utils.logging import setup_logging, get_logger
-from datetime import datetime
 import numpy as np
 import random
 
@@ -91,7 +90,7 @@ def mlp_dimensions(cfg: ExperimentConfig) -> Tuple[int, List[int]]:
     raise ValueError(f"Unsupported dataset for MLP: {cfg.dataset}")
 
 
-def run_experiment_mlp(cfg: ExperimentConfig) -> dict:
+def run_experiment_mlp(cfg: ExperimentConfig, run_name: str) -> dict:
     """
     Trains MLP models according to cfg.training_method:
       - 'all'      : runs autodiff, dd, and backprop; returns keys 'autodiff', 'dd', 'bp'
@@ -99,19 +98,11 @@ def run_experiment_mlp(cfg: ExperimentConfig) -> dict:
       - 'dd'       : returns keys 'mono_ff', 'mono_bp', 'early_stopping'
       - 'backprop' : returns keys 'bp', 'early_stopping'
     """
-    log_file = setup_logging(cfg)
+    log_file = setup_logging(cfg, run_name)
     logger.info(f"Logs saved to: {log_file}")
 
     set_seed(cfg.seed)
-    train_loader, val_loader, test_loader, in_channels, num_classes = build_dataloaders(
-        cfg
-    )
-
-    run_name = (
-        f"mlp_{cfg.dataset}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-        if cfg.training_method == "all"
-        else f"{cfg.training_method}_mlp_{cfg.dataset}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-    )
+    train_loader, val_loader, test_loader, in_channels, num_classes = build_dataloaders(cfg)
 
     writer = SummaryWriter(log_dir=f"{cfg.tensorboard_logdir}/{run_name}")
     logger.info(f"TensorBoard logs: {cfg.tensorboard_logdir}/{run_name}")
@@ -204,7 +195,7 @@ def run_experiment_mlp(cfg: ExperimentConfig) -> dict:
             raise ValueError(f"Unknown training_method: {cfg.training_method}")
 
 
-def run_experiment_cnn(cfg: ExperimentConfig) -> dict:
+def run_experiment_cnn(cfg: ExperimentConfig, run_name: str) -> dict:
     """
     Trains CNN models according to cfg.training_method:
       - 'all'      : runs autodiff, dd, and backprop; returns keys 'autodiff', 'dd', 'bp'
@@ -212,19 +203,12 @@ def run_experiment_cnn(cfg: ExperimentConfig) -> dict:
       - 'dd'       : returns keys 'mono_ff', 'mono_bp', 'early_stopping'
       - 'backprop' : returns keys 'bp', 'early_stopping'
     """
-    log_file = setup_logging(cfg)
+    log_file = setup_logging(cfg, run_name)
     logger.info(f"Logs saved to: {log_file}")
 
     set_seed(cfg.seed)
-    train_loader, val_loader, test_loader, in_channels, num_classes = build_dataloaders(
-        cfg
-    )
+    train_loader, val_loader, test_loader, in_channels, num_classes = build_dataloaders(cfg)
 
-    run_name = (
-        f"cnn_{cfg.dataset}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-        if cfg.training_method == "all"
-        else f"{cfg.training_method}_cnn_{cfg.dataset}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-    )
     writer = SummaryWriter(log_dir=f"{cfg.tensorboard_logdir}/{run_name}")
     logger.info(f"TensorBoard logs: {cfg.tensorboard_logdir}/{run_name}")
 
@@ -316,12 +300,12 @@ def run_experiment_cnn(cfg: ExperimentConfig) -> dict:
             raise ValueError(f"Unknown training_method: {cfg.training_method}")
 
 
-def run_experiment(cfg: ExperimentConfig) -> dict:
+def run_experiment(cfg: ExperimentConfig, run_name: str) -> dict:
     """Entry point to run an experiment based on the model type specified in cfg"""
     match cfg.model:
         case "mlp":
-            return run_experiment_mlp(cfg)
+            return run_experiment_mlp(cfg, run_name)
         case "cnn":
-            return run_experiment_cnn(cfg)
+            return run_experiment_cnn(cfg, run_name)
         case _:
             raise ValueError(f"Unknown model type: {cfg.model}")

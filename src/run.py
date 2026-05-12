@@ -98,14 +98,12 @@ if __name__ == "__main__":
     for config in configs:
         print(f"Running {config.model} on {config.dataset}")
 
-        history = run_experiment(config)
-
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        opt_tag = f"{config.optimizer}_lr{config.lr}_bs{config.batch_size}"
-        if config.model == "mlp":
-            opt_tag += f"_step{config.scheduler_step_size}"
-        history_file = results_dir / f"{config.model}_{config.dataset}_{opt_tag}_{timestamp}.json"
+        run_name = config.run_name(timestamp)
 
+        history = run_experiment(config, run_name)
+
+        history_file = results_dir / f"{run_name}.json"
         with open(history_file, "w") as f:
             json.dump(history, f, indent=2)
 
