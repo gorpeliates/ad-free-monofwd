@@ -6,40 +6,27 @@ import math
 
 
 class MonoFwdLinearBlock(nn.Module):
-    def __init__(
-        self, in_dim: int, out_dim: int, num_classes: int, activation: str = "relu"
-    ):
+    def __init__(self, in_dim: int, out_dim: int, num_classes: int):
         super().__init__()
         self.linear = nn.Linear(in_dim, out_dim)
 
-        m = num_classes
-        n = out_dim
+        n, m = out_dim, num_classes
         self.M = nn.Parameter(torch.empty(n, m))
         nn.init.kaiming_uniform_(self.M, a=math.sqrt(5))
 
-        self.activation = F.relu if activation == "relu" else F.tanh
-
     def forward(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
-        a = self.activation(self.linear(x))
+        a = F.relu(self.linear(x))
         g = a @ self.M
         return a, g
 
 
 class MonoFwdMLP(nn.Module):
-    def __init__(
-        self,
-        input_dim: int,
-        hidden_dims: list[int],
-        num_classes: int,
-        activation: str = "relu",
-    ):
+    def __init__(self, input_dim: int, hidden_dims: list[int], num_classes: int):
         super().__init__()
         dims = [input_dim] + hidden_dims
         self.blocks = nn.ModuleList(
             [
-                MonoFwdLinearBlock(
-                    dims[i], dims[i + 1], num_classes, activation=activation
-                )
+                MonoFwdLinearBlock(dims[i], dims[i + 1], num_classes)
                 for i in range(len(hidden_dims))
             ]
         )

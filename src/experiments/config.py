@@ -13,7 +13,6 @@ class ExperimentConfig:
     seed: int = 42
     data_root: str = "./data"
     num_workers: int = 2
-    activation: str = "relu"  # relu | tanh
     early_stopping: bool = True
     early_stopping_patience: int = 20
     early_stopping_min_delta: float = 1e-4

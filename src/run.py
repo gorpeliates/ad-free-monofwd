@@ -28,9 +28,6 @@ def parse_args() -> list[ExperimentConfig]:
     parser.add_argument("--data_root", type=str, default="./data")
     parser.add_argument("--num_workers", type=int, default=2)
     parser.add_argument(
-        "--activation", type=str, default="relu", choices=["relu", "tanh"]
-    )
-    parser.add_argument(
         "--no-early-stopping",
         action="store_false",
         dest="early_stopping",

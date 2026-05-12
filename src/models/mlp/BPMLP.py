@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 
 class BPMLP(nn.Module):
-    def __init__(self, input_dim: int, hidden_dims: list[int], num_classes: int, activation: str = "relu"):
+    def __init__(self, input_dim: int, hidden_dims: list[int], num_classes: int):
         super().__init__()
 
         layers = []
@@ -10,8 +10,7 @@ class BPMLP(nn.Module):
 
         for i in range(len(hidden_dims)):
             layers.append(nn.Linear(dims[i], dims[i + 1]))
-            activation_fn = nn.ReLU() if activation == "relu" else nn.Tanh()
-            layers.append(activation_fn)
+            layers.append(nn.ReLU())
 
         layers.append(nn.Linear(hidden_dims[-1], num_classes))
 

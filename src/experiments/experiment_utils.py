@@ -35,7 +35,6 @@ def _build_model(
             input_dim=input_dim,
             hidden_dims=hidden_dims,
             num_classes=num_classes,
-            activation=cfg.activation,
         )
 
     if cfg.model == "cnn":
@@ -62,7 +61,6 @@ def _build_bp_model(
             input_dim=input_dim,
             hidden_dims=hidden_dims,
             num_classes=num_classes,
-            activation=cfg.activation,
         )
 
     if cfg.model == "cnn":
