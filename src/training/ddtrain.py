@@ -36,7 +36,7 @@ def _get_pre_proj_activation(
         next_h = F.max_pool2d(a, kernel_size=2)
         pre_proj_a = F.adaptive_avg_pool2d(a, (1, 1)).flatten(1)
     elif isinstance(block, MonoFwdLinearBlock):
-        pre_proj_a = block.activation(block.linear(h))
+        pre_proj_a = F.relu(block.linear(h))
         next_h = pre_proj_a
     else:
         raise TypeError(f"Unsupported block type: {type(block)}")
@@ -92,6 +92,9 @@ def train_monofwd_one_epoch_dd(
 
             grad_acc_W = torch.zeros(n_W, device=cfg.device)
 
+            # Save BN running stats so perturbation passes don't corrupt them
+            bn_state = _save_bn_state(block)
+
             for _ in range(P):
                 v = torch.randn(n_W, device=cfg.device)
                 v_hat = v / v.norm()
@@ -106,8 +109,9 @@ def train_monofwd_one_epoch_dd(
                 _, g_minus = block.forward(h)
                 L_minus = F.cross_entropy(g_minus, y).item()
 
-                # restore
+                # restore weights and BN stats after each pair
                 _apply_perturbation(w_params, eps * v_hat)
+                _restore_bn_state(block, bn_state)
 
                 dd = (L_plus - L_minus) / (2.0 * eps)
                 grad_acc_W += dd * v_hat
@@ -167,6 +171,23 @@ def _apply_perturbation(params: list[nn.Parameter], flat_delta: torch.Tensor) ->
         n = p.numel()
         p.data += flat_delta[idx : idx + n].view_as(p)
         idx += n
+
+
+def _save_bn_state(block: nn.Module) -> dict:
+    """Snapshot running_mean/running_var of all BN layers in block."""
+    state = {}
+    for name, m in block.named_modules():
+        if isinstance(m, (nn.BatchNorm1d, nn.BatchNorm2d)):
+            state[name] = (m.running_mean.clone(), m.running_var.clone())
+    return state
+
+
+def _restore_bn_state(block: nn.Module, state: dict) -> None:
+    """Restore running_mean/running_var saved by _save_bn_state."""
+    for name, m in block.named_modules():
+        if isinstance(m, (nn.BatchNorm1d, nn.BatchNorm2d)) and name in state:
+            m.running_mean.copy_(state[name][0])
+            m.running_var.copy_(state[name][1])
 
 
 def run_monofwd_training_dd(
