@@ -19,29 +19,34 @@ from models.mlp.BPMLP import BPMLP
 logger = get_logger(__name__)
 
 
-def _build_model(
+# FFzero based architectures per dataset.
+# MLP: width 100, depth 10 (max of FFzero sweep), uniform across datasets.
+# CNN: (channels, conv_dropout) from FFzero Supp. Table 1; CIFAR scaled up to match complexity.
+_MLP_ARCH = {
+    "mnist":        (28 * 28,     [100] * 10),
+    "fashionmnist": (28 * 28,     [100] * 10),
+    "cifar10":      (32 * 32 * 3, [100] * 10),
+    "cifar100":     (32 * 32 * 3, [100] * 10),
+}
+
+_CNN_ARCH = {
+    "mnist":        ([32, 32],            0.0),
+    "fashionmnist": ([64, 64],            0.1),
+    "cifar10":      ([32, 64, 128, 256],  0.1),
+    "cifar100":     ([32, 64, 128, 256],  0.1),
+}
+
+
+def _build_mono_model(
     cfg: ExperimentConfig, in_channels: int, num_classes: int
 ) -> nn.Module:
     ds = cfg.dataset.lower()
-
     if cfg.model == "mlp":
-        if ds in {"mnist", "fashionmnist"}:
-            hidden_dims, input_dim = [1000, 1000], 28 * 28
-        elif ds in {"cifar10", "cifar100"}:
-            hidden_dims, input_dim = [2000, 2000, 2000], 32 * 32 * 3
-        else:
-            raise ValueError(f"Unsupported dataset for MLP: {cfg.dataset}")
-        return MonoFwdMLP(
-            input_dim=input_dim,
-            hidden_dims=hidden_dims,
-            num_classes=num_classes,
-        )
-
+        input_dim, hidden_dims = _MLP_ARCH[ds]
+        return MonoFwdMLP(input_dim=input_dim, hidden_dims=hidden_dims, num_classes=num_classes)
     if cfg.model == "cnn":
-        return MonoFwdCNN(
-            in_ch=in_channels, channels=[64, 128, 256, 512], num_classes=num_classes
-        )
-
+        channels, conv_dropout = _CNN_ARCH[ds]
+        return MonoFwdCNN(in_ch=in_channels, channels=channels, num_classes=num_classes, conv_dropout=conv_dropout)
     raise ValueError(f"Unknown model type: {cfg.model}")
 
 
@@ -49,25 +54,12 @@ def _build_bp_model(
     cfg: ExperimentConfig, in_channels: int, num_classes: int
 ) -> nn.Module:
     ds = cfg.dataset.lower()
-
     if cfg.model == "mlp":
-        if ds in {"mnist", "fashionmnist"}:
-            hidden_dims, input_dim = [1000, 1000], 28 * 28
-        elif ds in {"cifar10", "cifar100"}:
-            hidden_dims, input_dim = [2000, 2000, 2000], 32 * 32 * 3
-        else:
-            raise ValueError(f"Unsupported dataset for MLP: {cfg.dataset}")
-        return BPMLP(
-            input_dim=input_dim,
-            hidden_dims=hidden_dims,
-            num_classes=num_classes,
-        )
-
+        input_dim, hidden_dims = _MLP_ARCH[ds]
+        return BPMLP(input_dim=input_dim, hidden_dims=hidden_dims, num_classes=num_classes)
     if cfg.model == "cnn":
-        return BPCNN(
-            in_ch=in_channels, channels=[64, 128, 256, 512], num_classes=num_classes
-        )
-
+        channels, conv_dropout = _CNN_ARCH[ds]
+        return BPCNN(in_ch=in_channels, channels=channels, num_classes=num_classes, conv_dropout=conv_dropout)
     raise ValueError(f"Unknown model type: {cfg.model}")
 
 
@@ -80,12 +72,7 @@ def set_seed(seed: int) -> None:
 
 
 def mlp_dimensions(cfg: ExperimentConfig) -> Tuple[int, List[int]]:
-    ds = cfg.dataset.lower()
-    if ds in {"mnist", "fashionmnist"}:
-        return 28 * 28, [1000, 1000]
-    if ds in {"cifar10", "cifar100"}:
-        return 32 * 32 * 3, [2000, 2000, 2000]
-    raise ValueError(f"Unsupported dataset for MLP: {cfg.dataset}")
+    return _MLP_ARCH[cfg.dataset.lower()]
 
 
 def run_experiment_mlp(cfg: ExperimentConfig, run_name: str) -> dict:
@@ -100,7 +87,9 @@ def run_experiment_mlp(cfg: ExperimentConfig, run_name: str) -> dict:
     logger.info(f"Logs saved to: {log_file}")
 
     set_seed(cfg.seed)
-    train_loader, val_loader, test_loader, in_channels, num_classes = build_dataloaders(cfg)
+    train_loader, val_loader, test_loader, in_channels, num_classes = build_dataloaders(
+        cfg
+    )
 
     writer = SummaryWriter(log_dir=f"{cfg.tensorboard_logdir}/{run_name}")
     logger.info(f"TensorBoard logs: {cfg.tensorboard_logdir}/{run_name}")
@@ -108,7 +97,7 @@ def run_experiment_mlp(cfg: ExperimentConfig, run_name: str) -> dict:
     match cfg.training_method:
         case "autodiff":
             metrics = run_monofwd_training_ad(
-                _build_model(cfg, in_channels, num_classes).to(cfg.device),
+                _build_mono_model(cfg, in_channels, num_classes).to(cfg.device),
                 train_loader,
                 val_loader,
                 test_loader,
@@ -123,7 +112,7 @@ def run_experiment_mlp(cfg: ExperimentConfig, run_name: str) -> dict:
             }
         case "dd":
             metrics = run_monofwd_training_dd(
-                _build_model(cfg, in_channels, num_classes).to(cfg.device),
+                _build_mono_model(cfg, in_channels, num_classes).to(cfg.device),
                 train_loader,
                 val_loader,
                 test_loader,
@@ -149,7 +138,7 @@ def run_experiment_mlp(cfg: ExperimentConfig, run_name: str) -> dict:
             return {"bp": metrics["bp"], "early_stopping": metrics["early_stopping"]}
         case "all":
             ad_metrics = run_monofwd_training_ad(
-                _build_model(cfg, in_channels, num_classes).to(cfg.device),
+                _build_mono_model(cfg, in_channels, num_classes).to(cfg.device),
                 train_loader,
                 val_loader,
                 test_loader,
@@ -157,7 +146,7 @@ def run_experiment_mlp(cfg: ExperimentConfig, run_name: str) -> dict:
                 writer=writer,
             )
             dd_metrics = run_monofwd_training_dd(
-                _build_model(cfg, in_channels, num_classes).to(cfg.device),
+                _build_mono_model(cfg, in_channels, num_classes).to(cfg.device),
                 train_loader,
                 val_loader,
                 test_loader,
@@ -205,7 +194,9 @@ def run_experiment_cnn(cfg: ExperimentConfig, run_name: str) -> dict:
     logger.info(f"Logs saved to: {log_file}")
 
     set_seed(cfg.seed)
-    train_loader, val_loader, test_loader, in_channels, num_classes = build_dataloaders(cfg)
+    train_loader, val_loader, test_loader, in_channels, num_classes = build_dataloaders(
+        cfg
+    )
 
     writer = SummaryWriter(log_dir=f"{cfg.tensorboard_logdir}/{run_name}")
     logger.info(f"TensorBoard logs: {cfg.tensorboard_logdir}/{run_name}")
@@ -213,7 +204,7 @@ def run_experiment_cnn(cfg: ExperimentConfig, run_name: str) -> dict:
     match cfg.training_method:
         case "autodiff":
             metrics = run_monofwd_training_ad(
-                _build_model(cfg, in_channels, num_classes).to(cfg.device),
+                _build_mono_model(cfg, in_channels, num_classes).to(cfg.device),
                 train_loader,
                 val_loader,
                 test_loader,
@@ -228,7 +219,7 @@ def run_experiment_cnn(cfg: ExperimentConfig, run_name: str) -> dict:
             }
         case "dd":
             metrics = run_monofwd_training_dd(
-                _build_model(cfg, in_channels, num_classes).to(cfg.device),
+                _build_mono_model(cfg, in_channels, num_classes).to(cfg.device),
                 train_loader,
                 val_loader,
                 test_loader,
@@ -254,7 +245,7 @@ def run_experiment_cnn(cfg: ExperimentConfig, run_name: str) -> dict:
             return {"bp": metrics["bp"], "early_stopping": metrics["early_stopping"]}
         case "all":
             ad_metrics = run_monofwd_training_ad(
-                _build_model(cfg, in_channels, num_classes).to(cfg.device),
+                _build_mono_model(cfg, in_channels, num_classes).to(cfg.device),
                 train_loader,
                 val_loader,
                 test_loader,
@@ -262,7 +253,7 @@ def run_experiment_cnn(cfg: ExperimentConfig, run_name: str) -> dict:
                 writer=writer,
             )
             dd_metrics = run_monofwd_training_dd(
-                _build_model(cfg, in_channels, num_classes).to(cfg.device),
+                _build_mono_model(cfg, in_channels, num_classes).to(cfg.device),
                 train_loader,
                 val_loader,
                 test_loader,

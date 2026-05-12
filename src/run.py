@@ -18,8 +18,8 @@ def parse_args() -> list[ExperimentConfig]:
         "--dataset", type=str, nargs="+", default=["mnist"], choices=[*DATASETS, "all"]
     )
     parser.add_argument("--model", type=str, default="mlp", choices=["mlp", "cnn"])
-    parser.add_argument("--batch_size", type=int, default=128)
-    parser.add_argument("--epochs", type=int, default=200)
+    parser.add_argument("--batch_size", type=int, default=256)
+    parser.add_argument("--epochs", type=int, default=100)
     parser.add_argument("--lr", type=float, default=1e-3)
     parser.add_argument(
         "--device", type=str, default="cuda" if torch.cuda.is_available() else "cpu"
@@ -48,21 +48,15 @@ def parse_args() -> list[ExperimentConfig]:
     parser.add_argument(
         "--dd_num_perturbations",
         type=int,
-        default=2,
+        default=1,
         help="Number of perturbation directions P per block per step for MF+DD",
-    )
-    parser.add_argument(
-        "--scheduler_step_size",
-        type=int,
-        default=30,
-        help="Learning rate step scheduler: reduce LR by 0.1x every N epochs",
     )
     parser.add_argument(
         "--optimizer",
         type=str,
         default="adam",
         choices=["adam", "sgd"],
-        help="Optimizer to use (default: adam)",
+        help="Optimizer for AD/BP baselines (default: adam). DD always uses raw SGD with lr.",
     )
     parser.add_argument(
         "--logdir",
@@ -70,7 +64,6 @@ def parse_args() -> list[ExperimentConfig]:
         default="runs",
         help="TensorBoard log directory (default: runs/)",
     )
-
     args = parser.parse_args()
     datasets = (
         list(DATASETS) if "all" in args.dataset else list(dict.fromkeys(args.dataset))

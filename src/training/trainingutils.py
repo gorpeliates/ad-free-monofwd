@@ -32,22 +32,6 @@ def build_optimizers(
     return opts
 
 
-def build_step_schedulers(
-    optimizers: List[torch.optim.Optimizer], cfg: ExperimentConfig
-) -> List[torch.optim.lr_scheduler.LRScheduler]:
-    schedulers = []
-    for opt in optimizers:
-        if cfg.model == "cnn":
-            scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
-                opt, T_max=cfg.epochs
-            )
-        else:
-            scheduler = torch.optim.lr_scheduler.StepLR(
-                opt, step_size=cfg.scheduler_step_size, gamma=0.1
-            )
-        schedulers.append(scheduler)
-    return schedulers
-
 
 def early_stopping_improved(
     best_loss: float, current_loss: float, min_delta: float

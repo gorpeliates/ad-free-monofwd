@@ -3,18 +3,20 @@
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-DATASETS=("cifar10" "cifar100" "mnist" "fashionmnist" "all")
-MODEL=${1:-cnn}
+DATASETS=("mnist" "fashionmnist" "cifar10")
+MODELS=("mlp" "cnn")
 
 mkdir -p "$PROJECT_ROOT/runs/logs"
 
-echo "Submitting jobs for datasets: ${DATASETS[@]} with model: $MODEL"
+echo "Submitting jobs for datasets: ${DATASETS[@]} with models: ${MODELS[@]}"
 
-for dataset in "${DATASETS[@]}"; do
-    echo "Submitting job for dataset: $dataset"
-    sbatch --job-name="monofwd_train_${dataset}" \
-           --output="$PROJECT_ROOT/runs/logs/train_${dataset}_%j.out" \
-           "$PROJECT_ROOT/scripts/train.slurm" --dataset "$dataset" --model "$MODEL"
+for model in "${MODELS[@]}"; do
+    for dataset in "${DATASETS[@]}"; do
+        echo "Submitting: model=$model dataset=$dataset"
+        sbatch --job-name="monofwd_${model}_${dataset}" \
+               --output="$PROJECT_ROOT/runs/logs/train_${model}_${dataset}_%j.out" \
+               "$PROJECT_ROOT/scripts/train.slurm" --dataset "$dataset" --model "$model"
+    done
 done
 
-echo "All jobs submitted!" 
+echo "All jobs submitted!"

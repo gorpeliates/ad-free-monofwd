@@ -11,40 +11,54 @@ class MonoFwdConvBlock(nn.Module):
         in_ch: int,
         out_ch: int,
         num_classes: int,
+        dropout: float = 0.0,
     ):
         super().__init__()
-        self.conv = nn.Conv2d(in_ch, out_ch, kernel_size=3, padding=1)
+        # FFzero CNN: kernel 6x6, stride 1, padding 2
+        self.conv = nn.Conv2d(in_ch, out_ch, kernel_size=6, stride=1, padding=2)
+        self.bn = nn.BatchNorm2d(out_ch)
+        self.dropout_p = dropout
 
         m = num_classes
         n = out_ch
         self.M = nn.Parameter(torch.empty(n, m))
         nn.init.kaiming_uniform_(self.M, a=math.sqrt(5))
-        self.bn = nn.BatchNorm2d(out_ch)
         self.num_classes = num_classes
 
     def forward(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         """
-        Forward pass, conv layer, BN, ReLU and max pooling
+        Conv -> BN -> ReLU -> MaxPool (-> Dropout), per FFzero Supp. Fig. 4.
+        Returns (next_h, goodness).
         """
         x = self.conv(x)
         x = self.bn(x)
         a = F.relu(x)
-        x = F.max_pool2d(a, kernel_size=2)  # Average pooling for the next layer
+        next_h = F.max_pool2d(a, kernel_size=2, stride=2)
+        if self.dropout_p > 0.0 and self.training:
+            next_h = F.dropout(next_h, p=self.dropout_p)
 
         pooled_a = F.adaptive_avg_pool2d(a, (1, 1)).flatten(1)
         g = pooled_a @ self.M
 
-        return x, g
+        return next_h, g
 
 
 class MonoFwdCNN(nn.Module):
-    def __init__(self, in_ch: int, channels: List[int], num_classes: int):
+    def __init__(
+        self,
+        in_ch: int,
+        channels: List[int],
+        num_classes: int,
+        conv_dropout: float = 0.0,
+    ):
         super().__init__()
         self.num_classes = num_classes
         dims = [in_ch] + channels
         self.blocks = nn.ModuleList(
             [
-                MonoFwdConvBlock(dims[i], dims[i + 1], num_classes)
+                MonoFwdConvBlock(
+                    dims[i], dims[i + 1], num_classes, dropout=conv_dropout
+                )
                 for i in range(len(channels))
             ]
         )
@@ -69,9 +83,7 @@ class MonoFwdCNN(nn.Module):
     @torch.no_grad()
     def predict_logits(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         """
-        Predicts logits using the same convention as MonoFwdMLP.
-        FF mode sums the goodness scores from all blocks.
-        BP mode uses the goodness scores from the last block.
+        FF mode sums goodness from all blocks; BP mode uses the last block.
         """
         h = x
         all_goodness = []
