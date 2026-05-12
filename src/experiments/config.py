@@ -17,7 +17,7 @@ class ExperimentConfig:
     early_stopping: bool = True
     early_stopping_patience: int = 20
     early_stopping_min_delta: float = 1e-4
-    training_method: str = "autodiff"  # autodiff | dd
+    training_method: str = "all"  # autodiff | dd | backprop | all
     dd_eps: float = 1e-3
     dd_num_perturbations: int = 2
     tensorboard_logdir: str = "runs"

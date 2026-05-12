@@ -41,9 +41,9 @@ def parse_args() -> list[ExperimentConfig]:
     parser.add_argument(
         "--training_method",
         type=str,
-        default="autodiff",
-        choices=["autodiff", "dd"],
-        help="MonoFwd training method: autodiff (default) or dd (directional derivatives)",
+        default="all",
+        choices=["autodiff", "dd", "backprop", "all"],
+        help="Training method to run: autodiff, dd, backprop, or all (default)",
     )
     parser.add_argument(
         "--dd_eps", type=float, default=1e-3, help="Perturbation magnitude ε for MF+DD"

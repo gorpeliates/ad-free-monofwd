@@ -20,16 +20,16 @@ from models.mlp.BPMLP import BPMLP
 logger = get_logger(__name__)
 
 
-def build_model(cfg: ExperimentConfig, in_channels: int, num_classes: int) -> nn.Module:
+def _build_model(
+    cfg: ExperimentConfig, in_channels: int, num_classes: int
+) -> nn.Module:
     ds = cfg.dataset.lower()
 
     if cfg.model == "mlp":
         if ds in {"mnist", "fashionmnist"}:
-            hidden_dims = [1000, 1000]
-            input_dim = 28 * 28
+            hidden_dims, input_dim = [1000, 1000], 28 * 28
         elif ds in {"cifar10", "cifar100"}:
-            hidden_dims = [2000, 2000, 2000]
-            input_dim = 32 * 32 * 3
+            hidden_dims, input_dim = [2000, 2000, 2000], 32 * 32 * 3
         else:
             raise ValueError(f"Unsupported dataset for MLP: {cfg.dataset}")
         return MonoFwdMLP(
@@ -40,20 +40,41 @@ def build_model(cfg: ExperimentConfig, in_channels: int, num_classes: int) -> nn
         )
 
     if cfg.model == "cnn":
-        channels = [64, 128, 256, 512]
         return MonoFwdCNN(
-            in_ch=in_channels,
-            channels=channels,
-            num_classes=num_classes,
+            in_ch=in_channels, channels=[64, 128, 256, 512], num_classes=num_classes
         )
 
     raise ValueError(f"Unknown model type: {cfg.model}")
 
 
-# run experiments
-def set_seed(seed: int) -> None:
-    """Set random seeds for reproducibility."""
+def _build_bp_model(
+    cfg: ExperimentConfig, in_channels: int, num_classes: int
+) -> nn.Module:
+    ds = cfg.dataset.lower()
 
+    if cfg.model == "mlp":
+        if ds in {"mnist", "fashionmnist"}:
+            hidden_dims, input_dim = [1000, 1000], 28 * 28
+        elif ds in {"cifar10", "cifar100"}:
+            hidden_dims, input_dim = [2000, 2000, 2000], 32 * 32 * 3
+        else:
+            raise ValueError(f"Unsupported dataset for MLP: {cfg.dataset}")
+        return BPMLP(
+            input_dim=input_dim,
+            hidden_dims=hidden_dims,
+            num_classes=num_classes,
+            activation=cfg.activation,
+        )
+
+    if cfg.model == "cnn":
+        return BPCNN(
+            in_ch=in_channels, channels=[64, 128, 256, 512], num_classes=num_classes
+        )
+
+    raise ValueError(f"Unknown model type: {cfg.model}")
+
+
+def set_seed(seed: int) -> None:
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
@@ -72,9 +93,11 @@ def mlp_dimensions(cfg: ExperimentConfig) -> Tuple[int, List[int]]:
 
 def run_experiment_mlp(cfg: ExperimentConfig) -> dict:
     """
-    Runs the training and evaluation loop comparing MonoFWD and BP models based on the provided configuration.
-    Returns:
-        dict: Contains metrics for both 'mono' and 'bp'.
+    Trains MLP models according to cfg.training_method:
+      - 'all'      : runs autodiff, dd, and backprop; returns keys 'autodiff', 'dd', 'bp'
+      - 'autodiff' : returns keys 'mono_ff', 'mono_bp', 'early_stopping'
+      - 'dd'       : returns keys 'mono_ff', 'mono_bp', 'early_stopping'
+      - 'backprop' : returns keys 'bp', 'early_stopping'
     """
     log_file = setup_logging(cfg)
     logger.info(f"Logs saved to: {log_file}")
@@ -83,58 +106,106 @@ def run_experiment_mlp(cfg: ExperimentConfig) -> dict:
     train_loader, val_loader, test_loader, in_channels, num_classes = build_dataloaders(
         cfg
     )
-    input_dim, hidden_dims = mlp_dimensions(cfg)
-
-    model_mono = MonoFwdMLP(
-        input_dim=input_dim,
-        hidden_dims=hidden_dims,
-        num_classes=num_classes,
-        activation=cfg.activation,
-    )
-
-    model_bp = BPMLP(
-        input_dim=input_dim,
-        hidden_dims=hidden_dims,
-        num_classes=num_classes,
-        activation=cfg.activation,
-    )
-
-    model_mono.to(cfg.device)
-    model_bp.to(cfg.device)
 
     run_name = f"mlp_{cfg.dataset}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
     writer = SummaryWriter(log_dir=f"{cfg.tensorboard_logdir}/{run_name}")
     logger.info(f"TensorBoard logs: {cfg.tensorboard_logdir}/{run_name}")
 
-    _run_mono = (
-        run_monofwd_training_dd
-        if cfg.training_method == "dd"
-        else run_monofwd_training_ad
-    )
-    mono_metrics = _run_mono(
-        model_mono, train_loader, val_loader, test_loader, cfg, writer=writer
-    )
-    bp_metrics = run_bp_training(
-        model_bp, train_loader, val_loader, test_loader, cfg, writer=writer
-    )
-    writer.close()
-
-    return {
-        "mono_ff": mono_metrics["mono_ff"],
-        "mono_bp": mono_metrics["mono_bp"],
-        "bp": bp_metrics["bp"],
-        "early_stopping": {
-            "mono": mono_metrics["early_stopping"],
-            "bp": bp_metrics["early_stopping"],
-        },
-    }
+    match cfg.training_method:
+        case "autodiff":
+            metrics = run_monofwd_training_ad(
+                _build_model(cfg, in_channels, num_classes).to(cfg.device),
+                train_loader,
+                val_loader,
+                test_loader,
+                cfg,
+                writer=writer,
+            )
+            writer.close()
+            return {
+                "mono_ff": metrics["mono_ff"],
+                "mono_bp": metrics["mono_bp"],
+                "early_stopping": metrics["early_stopping"],
+            }
+        case "dd":
+            metrics = run_monofwd_training_dd(
+                _build_model(cfg, in_channels, num_classes).to(cfg.device),
+                train_loader,
+                val_loader,
+                test_loader,
+                cfg,
+                writer=writer,
+            )
+            writer.close()
+            return {
+                "mono_ff": metrics["mono_ff"],
+                "mono_bp": metrics["mono_bp"],
+                "early_stopping": metrics["early_stopping"],
+            }
+        case "backprop":
+            metrics = run_bp_training(
+                _build_bp_model(cfg, in_channels, num_classes).to(cfg.device),
+                train_loader,
+                val_loader,
+                test_loader,
+                cfg,
+                writer=writer,
+            )
+            writer.close()
+            return {"bp": metrics["bp"], "early_stopping": metrics["early_stopping"]}
+        case "all":
+            ad_metrics = run_monofwd_training_ad(
+                _build_model(cfg, in_channels, num_classes).to(cfg.device),
+                train_loader,
+                val_loader,
+                test_loader,
+                cfg,
+                writer=writer,
+            )
+            dd_metrics = run_monofwd_training_dd(
+                _build_model(cfg, in_channels, num_classes).to(cfg.device),
+                train_loader,
+                val_loader,
+                test_loader,
+                cfg,
+                writer=writer,
+            )
+            bp_metrics = run_bp_training(
+                _build_bp_model(cfg, in_channels, num_classes).to(cfg.device),
+                train_loader,
+                val_loader,
+                test_loader,
+                cfg,
+                writer=writer,
+            )
+            writer.close()
+            return {
+                "autodiff": {
+                    "mono_ff": ad_metrics["mono_ff"],
+                    "mono_bp": ad_metrics["mono_bp"],
+                    "early_stopping": ad_metrics["early_stopping"],
+                },
+                "dd": {
+                    "mono_ff": dd_metrics["mono_ff"],
+                    "mono_bp": dd_metrics["mono_bp"],
+                    "early_stopping": dd_metrics["early_stopping"],
+                },
+                "bp": {
+                    "bp": bp_metrics["bp"],
+                    "early_stopping": bp_metrics["early_stopping"],
+                },
+            }
+        case _:
+            raise ValueError(f"Unknown training_method: {cfg.training_method}")
 
 
 def run_experiment_cnn(cfg: ExperimentConfig) -> dict:
     """
-    Runs the training and evaluation loop comparing MonoFWD and BP CNN models.
-    Returns:
-        dict: Contains metrics for 'mono_ff', 'mono_bp', and 'bp'.
+    Trains CNN models according to cfg.training_method:
+      - 'all'      : runs autodiff, dd, and backprop; returns keys 'autodiff', 'dd', 'bp'
+      - 'autodiff' : returns keys 'mono_ff', 'mono_bp', 'early_stopping'
+      - 'dd'       : returns keys 'mono_ff', 'mono_bp', 'early_stopping'
+      - 'backprop' : returns keys 'bp', 'early_stopping'
     """
     log_file = setup_logging(cfg)
     logger.info(f"Logs saved to: {log_file}")
@@ -143,54 +214,101 @@ def run_experiment_cnn(cfg: ExperimentConfig) -> dict:
     train_loader, val_loader, test_loader, in_channels, num_classes = build_dataloaders(
         cfg
     )
-    channels = [64, 128, 256, 512]
-
-    model_mono = MonoFwdCNN(
-        in_ch=in_channels,
-        channels=channels,
-        num_classes=num_classes,
-    )
-
-    model_bp = BPCNN(
-        in_ch=in_channels,
-        channels=channels,
-        num_classes=num_classes,
-    )
-
-    model_mono.to(cfg.device)
-    model_bp.to(cfg.device)
-
-    cfg.scheduler = "cosine"
 
     run_name = f"cnn_{cfg.dataset}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
     writer = SummaryWriter(log_dir=f"{cfg.tensorboard_logdir}/{run_name}")
     logger.info(f"TensorBoard logs: {cfg.tensorboard_logdir}/{run_name}")
 
-    _run_mono = (
-        run_monofwd_training_dd
-        if cfg.training_method == "dd"
-        else run_monofwd_training_ad
-    )
-    mono_metrics = _run_mono(
-        model_mono, train_loader, val_loader, test_loader, cfg, writer=writer
-    )
-    bp_metrics = run_bp_training(
-        model_bp, train_loader, val_loader, test_loader, cfg, writer=writer
-    )
-    writer.close()
-
-    return {
-        "mono_ff": mono_metrics["mono_ff"],
-        "mono_bp": mono_metrics["mono_bp"],
-        "bp": bp_metrics["bp"],
-        "early_stopping": {
-            "mono": mono_metrics["early_stopping"],
-            "bp": bp_metrics["early_stopping"],
-        },
-    }
+    match cfg.training_method:
+        case "autodiff":
+            metrics = run_monofwd_training_ad(
+                _build_model(cfg, in_channels, num_classes).to(cfg.device),
+                train_loader,
+                val_loader,
+                test_loader,
+                cfg,
+                writer=writer,
+            )
+            writer.close()
+            return {
+                "mono_ff": metrics["mono_ff"],
+                "mono_bp": metrics["mono_bp"],
+                "early_stopping": metrics["early_stopping"],
+            }
+        case "dd":
+            metrics = run_monofwd_training_dd(
+                _build_model(cfg, in_channels, num_classes).to(cfg.device),
+                train_loader,
+                val_loader,
+                test_loader,
+                cfg,
+                writer=writer,
+            )
+            writer.close()
+            return {
+                "mono_ff": metrics["mono_ff"],
+                "mono_bp": metrics["mono_bp"],
+                "early_stopping": metrics["early_stopping"],
+            }
+        case "backprop":
+            metrics = run_bp_training(
+                _build_bp_model(cfg, in_channels, num_classes).to(cfg.device),
+                train_loader,
+                val_loader,
+                test_loader,
+                cfg,
+                writer=writer,
+            )
+            writer.close()
+            return {"bp": metrics["bp"], "early_stopping": metrics["early_stopping"]}
+        case "all":
+            ad_metrics = run_monofwd_training_ad(
+                _build_model(cfg, in_channels, num_classes).to(cfg.device),
+                train_loader,
+                val_loader,
+                test_loader,
+                cfg,
+                writer=writer,
+            )
+            dd_metrics = run_monofwd_training_dd(
+                _build_model(cfg, in_channels, num_classes).to(cfg.device),
+                train_loader,
+                val_loader,
+                test_loader,
+                cfg,
+                writer=writer,
+            )
+            bp_metrics = run_bp_training(
+                _build_bp_model(cfg, in_channels, num_classes).to(cfg.device),
+                train_loader,
+                val_loader,
+                test_loader,
+                cfg,
+                writer=writer,
+            )
+            writer.close()
+            return {
+                "autodiff": {
+                    "mono_ff": ad_metrics["mono_ff"],
+                    "mono_bp": ad_metrics["mono_bp"],
+                    "early_stopping": ad_metrics["early_stopping"],
+                },
+                "dd": {
+                    "mono_ff": dd_metrics["mono_ff"],
+                    "mono_bp": dd_metrics["mono_bp"],
+                    "early_stopping": dd_metrics["early_stopping"],
+                },
+                "bp": {
+                    "bp": bp_metrics["bp"],
+                    "early_stopping": bp_metrics["early_stopping"],
+                },
+            }
+        case _:
+            raise ValueError(f"Unknown training_method: {cfg.training_method}")
 
 
 def run_experiment(cfg: ExperimentConfig) -> dict:
+    """Entry point to run an experiment based on the model type specified in cfg"""
     match cfg.model:
         case "mlp":
             return run_experiment_mlp(cfg)
