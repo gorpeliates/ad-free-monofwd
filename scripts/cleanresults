@@ -6,4 +6,5 @@ PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 rm -rf "$PROJECT_ROOT"/runs
 rm -rf "$PROJECT_ROOT"/results
 rm -rf "$PROJECT_ROOT"/logs
+rm -f "$PROJECT_ROOT"/*.out
 
