@@ -60,6 +60,7 @@ def run_bp_training(
     test_loader: DataLoader,
     cfg: ExperimentConfig,
     writer: Optional[SummaryWriter] = None,
+    tag_prefix: str = "",
 ) -> dict:
     """Runs standard BP training with early stopping based on validation loss. Returns metrics for BP predictor.
     Returns:
@@ -71,6 +72,7 @@ def run_bp_training(
         }
     """
 
+    p = f"{tag_prefix}/" if tag_prefix else ""
     if cfg.optimizer == "sgd":
         optimizer = torch.optim.SGD(model.parameters(), lr=cfg.lr, momentum=0.9)
     else:
@@ -111,10 +113,10 @@ def run_bp_training(
         )
 
         if writer:
-            writer.add_scalar("bp/loss/train", train_loss, epoch)
-            writer.add_scalar("bp/loss/val", val_loss, epoch)
-            writer.add_scalar("bp/acc/train", train_acc, epoch)
-            writer.add_scalar("bp/acc/val", val_acc, epoch)
+            writer.add_scalar(f"{p}bp/loss/train", train_loss, epoch)
+            writer.add_scalar(f"{p}bp/loss/val", val_loss, epoch)
+            writer.add_scalar(f"{p}bp/acc/train", train_acc, epoch)
+            writer.add_scalar(f"{p}bp/acc/val", val_acc, epoch)
 
         if cfg.early_stopping:
             if early_stopping_improved(

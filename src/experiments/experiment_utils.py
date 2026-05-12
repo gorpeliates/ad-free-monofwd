@@ -139,27 +139,15 @@ def run_experiment_mlp(cfg: ExperimentConfig, run_name: str) -> dict:
         case "all":
             ad_metrics = run_monofwd_training_ad(
                 _build_mono_model(cfg, in_channels, num_classes).to(cfg.device),
-                train_loader,
-                val_loader,
-                test_loader,
-                cfg,
-                writer=writer,
+                train_loader, val_loader, test_loader, cfg, writer=writer, tag_prefix="autodiff",
             )
             dd_metrics = run_monofwd_training_dd(
                 _build_mono_model(cfg, in_channels, num_classes).to(cfg.device),
-                train_loader,
-                val_loader,
-                test_loader,
-                cfg,
-                writer=writer,
+                train_loader, val_loader, test_loader, cfg, writer=writer, tag_prefix="dd",
             )
             bp_metrics = run_bp_training(
                 _build_bp_model(cfg, in_channels, num_classes).to(cfg.device),
-                train_loader,
-                val_loader,
-                test_loader,
-                cfg,
-                writer=writer,
+                train_loader, val_loader, test_loader, cfg, writer=writer, tag_prefix="backprop",
             )
             writer.close()
             return {
@@ -246,27 +234,15 @@ def run_experiment_cnn(cfg: ExperimentConfig, run_name: str) -> dict:
         case "all":
             ad_metrics = run_monofwd_training_ad(
                 _build_mono_model(cfg, in_channels, num_classes).to(cfg.device),
-                train_loader,
-                val_loader,
-                test_loader,
-                cfg,
-                writer=writer,
+                train_loader, val_loader, test_loader, cfg, writer=writer, tag_prefix="autodiff",
             )
             dd_metrics = run_monofwd_training_dd(
                 _build_mono_model(cfg, in_channels, num_classes).to(cfg.device),
-                train_loader,
-                val_loader,
-                test_loader,
-                cfg,
-                writer=writer,
+                train_loader, val_loader, test_loader, cfg, writer=writer, tag_prefix="dd",
             )
             bp_metrics = run_bp_training(
                 _build_bp_model(cfg, in_channels, num_classes).to(cfg.device),
-                train_loader,
-                val_loader,
-                test_loader,
-                cfg,
-                writer=writer,
+                train_loader, val_loader, test_loader, cfg, writer=writer, tag_prefix="backprop",
             )
             writer.close()
             return {

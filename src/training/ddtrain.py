@@ -197,8 +197,10 @@ def run_monofwd_training_dd(
     test_loader: DataLoader,
     cfg: ExperimentConfig,
     writer: Optional[SummaryWriter] = None,
+    tag_prefix: str = "",
 ) -> dict:
     """Runs MF+DD training. Same metrics structure as run_monofwd_training."""
+    p = f"{tag_prefix}/" if tag_prefix else ""
     best_val_loss = float("inf")
     best_state = None
     bad_epochs = 0
@@ -257,14 +259,14 @@ def run_monofwd_training_dd(
         )
 
         if writer:
-            writer.add_scalar("mono_ff/loss/train", train_loss_ff, epoch)
-            writer.add_scalar("mono_ff/loss/val", val_loss_ff, epoch)
-            writer.add_scalar("mono_ff/acc/train", train_acc_ff, epoch)
-            writer.add_scalar("mono_ff/acc/val", val_acc_ff, epoch)
-            writer.add_scalar("mono_bp/loss/train", train_loss_bp, epoch)
-            writer.add_scalar("mono_bp/loss/val", val_loss_bp, epoch)
-            writer.add_scalar("mono_bp/acc/train", train_acc_bp, epoch)
-            writer.add_scalar("mono_bp/acc/val", val_acc_bp, epoch)
+            writer.add_scalar(f"{p}mono_ff/loss/train", train_loss_ff, epoch)
+            writer.add_scalar(f"{p}mono_ff/loss/val", val_loss_ff, epoch)
+            writer.add_scalar(f"{p}mono_ff/acc/train", train_acc_ff, epoch)
+            writer.add_scalar(f"{p}mono_ff/acc/val", val_acc_ff, epoch)
+            writer.add_scalar(f"{p}mono_bp/loss/train", train_loss_bp, epoch)
+            writer.add_scalar(f"{p}mono_bp/loss/val", val_loss_bp, epoch)
+            writer.add_scalar(f"{p}mono_bp/acc/train", train_acc_bp, epoch)
+            writer.add_scalar(f"{p}mono_bp/acc/val", val_acc_bp, epoch)
 
         if cfg.early_stopping:
             if early_stopping_improved(

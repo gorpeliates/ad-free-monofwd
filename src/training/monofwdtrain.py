@@ -24,9 +24,7 @@ def train_monofwd_one_epoch_autodiff(
 ) -> Tuple[float, float, float, float]:
     """
     Train any MonoFwd model for one epoch using local autodiff updates per block.
-    The model must implement local_losses_logits(x, y) and expose one optimizer per block.
-    Returns:
-      total_loss_ff, acc_ff, total_loss_bp, acc_bp
+    Returns: total_loss_ff, acc_ff, total_loss_bp, acc_bp
     """
     model.to(device)
     model.train()
@@ -38,9 +36,6 @@ def train_monofwd_one_epoch_autodiff(
     num_batches = 0
 
     for x, y in dataloader:
-        x: torch.Tensor
-        y: torch.Tensor
-
         x = x.to(device, non_blocking=True)
         y = y.to(device, non_blocking=True)
 
@@ -61,10 +56,8 @@ def train_monofwd_one_epoch_autodiff(
 
             total_loss_ff += float(F.cross_entropy(final_goodness_ff, y).item())
             total_correct_ff += int((final_goodness_ff.argmax(dim=1) == y).sum().item())
-
             total_loss_bp += float(F.cross_entropy(final_goodness_bp, y).item())
             total_correct_bp += int((final_goodness_bp.argmax(dim=1) == y).sum().item())
-
             total_seen += x.size(0)
             num_batches += 1
 
@@ -83,55 +76,27 @@ def run_monofwd_training_ad(
     test_loader: DataLoader,
     cfg: ExperimentConfig,
     writer: Optional[SummaryWriter] = None,
+    tag_prefix: str = "",
 ) -> dict:
-    """Runs MonoFWD training with early stopping based on validation loss. Returns metrics for both FF and BP predictors.
-    Returns:
-        metrics (dict): Structure is as follows:
-        {
-            'mono_ff': {'train_losses': [...], 'train_accs': [...], 'val_losses': [...], 'val_accs': [...], 'test_losses': [...], 'test_accs': [...]},
-            'mono_bp': {'train_losses': [...], 'train_accs': [...], 'val_losses': [...], 'val_accs': [...], 'test_losses': [...], 'test_accs': [...]},
-            'early_stopping': {'best_epoch': int, 'stopped_epoch': int}
-        }
-    """
     opts = build_optimizers(model, cfg)
     best_val_loss = float("inf")
     best_state = None
     bad_epochs = 0
     best_val_acc_ff = 0.0
     best_val_acc_bp = 0.0
+    p = f"{tag_prefix}/" if tag_prefix else ""
 
     metrics = {
-        "mono_ff": {
-            "train_losses": [],
-            "train_accs": [],
-            "val_losses": [],
-            "val_accs": [],
-            "test_losses": [],
-            "test_accs": [],
-        },
-        "mono_bp": {
-            "train_losses": [],
-            "train_accs": [],
-            "val_losses": [],
-            "val_accs": [],
-            "test_losses": [],
-            "test_accs": [],
-        },
+        "mono_ff": {"train_losses": [], "train_accs": [], "val_losses": [], "val_accs": [], "test_losses": [], "test_accs": []},
+        "mono_bp": {"train_losses": [], "train_accs": [], "val_losses": [], "val_accs": [], "test_losses": [], "test_accs": []},
         "early_stopping": {"best_epoch": 0, "stopped_epoch": 0},
     }
 
     for epoch in range(1, cfg.epochs + 1):
-        train_loss_ff, train_acc_ff, train_loss_bp, train_acc_bp = (
-            train_monofwd_one_epoch_autodiff(
-                model,
-                opts,
-                train_loader,
-                device=cfg.device,
-            )
+        train_loss_ff, train_acc_ff, train_loss_bp, train_acc_bp = train_monofwd_one_epoch_autodiff(
+            model, opts, train_loader, device=cfg.device,
         )
-        val_loss_ff, val_acc_ff, val_loss_bp, val_acc_bp = evaluate_monofwd(
-            model, val_loader, device=cfg.device
-        )
+        val_loss_ff, val_acc_ff, val_loss_bp, val_acc_bp = evaluate_monofwd(model, val_loader, device=cfg.device)
         model.train()
         best_val_acc_ff = max(best_val_acc_ff, val_acc_ff)
         best_val_acc_bp = max(best_val_acc_bp, val_acc_bp)
@@ -140,7 +105,6 @@ def run_monofwd_training_ad(
         metrics["mono_ff"]["train_accs"].append(train_acc_ff)
         metrics["mono_ff"]["val_losses"].append(val_loss_ff)
         metrics["mono_ff"]["val_accs"].append(val_acc_ff)
-
         metrics["mono_bp"]["train_losses"].append(train_loss_bp)
         metrics["mono_bp"]["train_accs"].append(train_acc_bp)
         metrics["mono_bp"]["val_losses"].append(val_loss_bp)
@@ -153,20 +117,17 @@ def run_monofwd_training_ad(
         )
 
         if writer:
-            writer.add_scalar("mono_ff/loss/train", train_loss_ff, epoch)
-            writer.add_scalar("mono_ff/loss/val", val_loss_ff, epoch)
-            writer.add_scalar("mono_ff/acc/train", train_acc_ff, epoch)
-            writer.add_scalar("mono_ff/acc/val", val_acc_ff, epoch)
-            writer.add_scalar("mono_bp/loss/train", train_loss_bp, epoch)
-            writer.add_scalar("mono_bp/loss/val", val_loss_bp, epoch)
-            writer.add_scalar("mono_bp/acc/train", train_acc_bp, epoch)
-            writer.add_scalar("mono_bp/acc/val", val_acc_bp, epoch)
-
+            writer.add_scalar(f"{p}mono_ff/loss/train", train_loss_ff, epoch)
+            writer.add_scalar(f"{p}mono_ff/loss/val", val_loss_ff, epoch)
+            writer.add_scalar(f"{p}mono_ff/acc/train", train_acc_ff, epoch)
+            writer.add_scalar(f"{p}mono_ff/acc/val", val_acc_ff, epoch)
+            writer.add_scalar(f"{p}mono_bp/loss/train", train_loss_bp, epoch)
+            writer.add_scalar(f"{p}mono_bp/loss/val", val_loss_bp, epoch)
+            writer.add_scalar(f"{p}mono_bp/acc/train", train_acc_bp, epoch)
+            writer.add_scalar(f"{p}mono_bp/acc/val", val_acc_bp, epoch)
 
         if cfg.early_stopping:
-            if early_stopping_improved(
-                best_val_loss, val_loss_ff, cfg.early_stopping_min_delta
-            ):
+            if early_stopping_improved(best_val_loss, val_loss_ff, cfg.early_stopping_min_delta):
                 best_val_loss = val_loss_ff
                 bad_epochs = 0
                 best_state = deepcopy(model.state_dict())
@@ -175,17 +136,13 @@ def run_monofwd_training_ad(
                 bad_epochs += 1
                 if bad_epochs >= cfg.early_stopping_patience:
                     metrics["early_stopping"]["stopped_epoch"] = epoch
-                    logger.info(
-                        f"MonoFwd early stopping at epoch {epoch}; best epoch was {metrics['early_stopping']['best_epoch']}."
-                    )
+                    logger.info(f"MonoFwd early stopping at epoch {epoch}; best epoch was {metrics['early_stopping']['best_epoch']}.")
                     break
 
     if best_state is not None:
         model.load_state_dict(best_state)
 
-    test_loss_ff, test_acc_ff, test_loss_bp, test_acc_bp = evaluate_monofwd(
-        model, test_loader, device=cfg.device
-    )
+    test_loss_ff, test_acc_ff, test_loss_bp, test_acc_bp = evaluate_monofwd(model, test_loader, device=cfg.device)
     metrics["mono_ff"]["test_losses"].append(test_loss_ff)
     metrics["mono_ff"]["test_accs"].append(test_acc_ff)
     metrics["mono_bp"]["test_losses"].append(test_loss_bp)
