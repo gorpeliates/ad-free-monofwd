@@ -107,7 +107,12 @@ def run_experiment_mlp(cfg: ExperimentConfig) -> dict:
         cfg
     )
 
-    run_name = f"mlp_{cfg.dataset}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+    run_name = (
+        f"mlp_{cfg.dataset}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        if cfg.training_method == "all"
+        else f"{cfg.training_method}_mlp_{cfg.dataset}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+    )
+
     writer = SummaryWriter(log_dir=f"{cfg.tensorboard_logdir}/{run_name}")
     logger.info(f"TensorBoard logs: {cfg.tensorboard_logdir}/{run_name}")
 
@@ -215,7 +220,11 @@ def run_experiment_cnn(cfg: ExperimentConfig) -> dict:
         cfg
     )
 
-    run_name = f"cnn_{cfg.dataset}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+    run_name = (
+        f"cnn_{cfg.dataset}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        if cfg.training_method == "all"
+        else f"{cfg.training_method}_cnn_{cfg.dataset}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+    )
     writer = SummaryWriter(log_dir=f"{cfg.tensorboard_logdir}/{run_name}")
     logger.info(f"TensorBoard logs: {cfg.tensorboard_logdir}/{run_name}")
 

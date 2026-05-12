@@ -31,8 +31,9 @@ def _get_pre_proj_activation(
 
     if isinstance(block, MonoFwdConvBlock):
         x = block.conv(h)
+        x = block.bn(x)
         a = F.relu(x)
-        next_h = F.avg_pool2d(a, kernel_size=2)
+        next_h = F.max_pool2d(a, kernel_size=2)
         pre_proj_a = F.adaptive_avg_pool2d(a, (1, 1)).flatten(1)
     elif isinstance(block, MonoFwdLinearBlock):
         pre_proj_a = block.activation(block.linear(h))
@@ -125,10 +126,10 @@ def train_monofwd_one_epoch_dd(
                 u_hat = u / u.norm()
                 u_hat_mat = u_hat.view_as(block.M)
 
-                g_plus = pre_proj_a @ (block.M + eps * u_hat_mat).T
+                g_plus = pre_proj_a @ (block.M + eps * u_hat_mat)
                 L_plus = F.cross_entropy(g_plus, y).item()
 
-                g_minus = pre_proj_a @ (block.M - eps * u_hat_mat).T
+                g_minus = pre_proj_a @ (block.M - eps * u_hat_mat)
                 L_minus = F.cross_entropy(g_minus, y).item()
 
                 dd = (L_plus - L_minus) / (2.0 * eps)
@@ -137,7 +138,7 @@ def train_monofwd_one_epoch_dd(
             block.M.data -= (lr * n_M / P) * grad_acc_M.view_as(block.M)
 
             #  collect logits and advance h to next block
-            g_final = pre_proj_a @ block.M.T
+            g_final = pre_proj_a @ block.M
             logits_per_layer.append(g_final)
             h = next_h.detach()
 
