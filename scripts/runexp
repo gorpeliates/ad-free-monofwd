@@ -15,7 +15,8 @@ for model in "${MODELS[@]}"; do
         echo "Submitting: model=$model dataset=$dataset"
         sbatch --job-name="monofwd_${model}_${dataset}" \
                --output="$PROJECT_ROOT/runs/logs/train_${model}_${dataset}_%j.out" \
-               "$PROJECT_ROOT/scripts/train.slurm" --dataset "$dataset" --model "$model"
+               "$PROJECT_ROOT/scripts/train.slurm" --dataset "$dataset" --model "$model" \
+               --no-early-stopping
     done
 done
 
