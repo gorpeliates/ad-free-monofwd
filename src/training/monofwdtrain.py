@@ -35,6 +35,7 @@ def train_monofwd_one_epoch_autodiff(
     total_seen = 0
     num_batches = 0
     layer_loss_totals: List[float] = []
+    layer_correct_totals: List[int] = []
 
     for x, y in dataloader:
         x = x.to(device, non_blocking=True)
@@ -47,6 +48,7 @@ def train_monofwd_one_epoch_autodiff(
 
         if not layer_loss_totals:
             layer_loss_totals = [0.0] * len(losses)
+            layer_correct_totals = [0] * len(losses)
 
         for loss in losses:
             loss.backward()
@@ -55,8 +57,9 @@ def train_monofwd_one_epoch_autodiff(
             opt.step()
 
         with torch.no_grad():
-            for i, loss in enumerate(losses):
+            for i, (loss, logits) in enumerate(zip(losses, logits_per_layer)):
                 layer_loss_totals[i] += float(loss.item())
+                layer_correct_totals[i] += int((logits.argmax(dim=1) == y).sum().item())
 
             final_goodness_ff = torch.stack(logits_per_layer, dim=0).sum(dim=0)
             final_goodness_bp = logits_per_layer[-1]
@@ -74,6 +77,7 @@ def train_monofwd_one_epoch_autodiff(
         total_loss_bp / num_batches,
         total_correct_bp / total_seen,
         [l / num_batches for l in layer_loss_totals],
+        [c / total_seen for c in layer_correct_totals],
     )
 
 
@@ -101,7 +105,7 @@ def run_monofwd_training_ad(
     }
 
     for epoch in range(1, cfg.epochs + 1):
-        train_loss_ff, train_acc_ff, train_loss_bp, train_acc_bp, train_layer_losses = train_monofwd_one_epoch_autodiff(
+        train_loss_ff, train_acc_ff, train_loss_bp, train_acc_bp, train_layer_losses, train_layer_accs = train_monofwd_one_epoch_autodiff(
             model, opts, train_loader, device=cfg.device,
         )
         val_loss_ff, val_acc_ff, val_loss_bp, val_acc_bp = evaluate_monofwd(model, val_loader, device=cfg.device)
@@ -133,8 +137,9 @@ def run_monofwd_training_ad(
             writer.add_scalar(f"{p}mono_bp/loss/val", val_loss_bp, epoch)
             writer.add_scalar(f"{p}mono_bp/acc/train", train_acc_bp, epoch)
             writer.add_scalar(f"{p}mono_bp/acc/val", val_acc_bp, epoch)
-            for i, layer_loss in enumerate(train_layer_losses):
+            for i, (layer_loss, layer_acc) in enumerate(zip(train_layer_losses, train_layer_accs)):
                 writer.add_scalar(f"{p}layer_loss/layer_{i}/train", layer_loss, epoch)
+                writer.add_scalar(f"{p}layer_acc/layer_{i}/train", layer_acc, epoch)
 
         if cfg.early_stopping:
             if early_stopping_improved(best_val_loss, val_loss_ff, cfg.early_stopping_min_delta):

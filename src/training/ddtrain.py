@@ -73,6 +73,7 @@ def train_monofwd_one_epoch_dd(
     total_seen = 0
     num_batches = 0
     layer_loss_totals: list[float] = []
+    layer_correct_totals: list[int] = []
 
     for x, y in dataloader:
         x: torch.Tensor
@@ -149,12 +150,14 @@ def train_monofwd_one_epoch_dd(
 
         if not layer_loss_totals:
             layer_loss_totals = [0.0] * len(logits_per_layer)
+            layer_correct_totals = [0] * len(logits_per_layer)
 
         final_goodness_ff = torch.stack(logits_per_layer, dim=0).sum(dim=0)
         final_goodness_bp = logits_per_layer[-1]
 
         for i, g in enumerate(logits_per_layer):
             layer_loss_totals[i] += float(F.cross_entropy(g, y).item())
+            layer_correct_totals[i] += int((g.argmax(dim=1) == y).sum().item())
 
         total_loss_ff += float(F.cross_entropy(final_goodness_ff, y).item())
         total_correct_ff += int((final_goodness_ff.argmax(dim=1) == y).sum().item())
@@ -169,6 +172,7 @@ def train_monofwd_one_epoch_dd(
         total_loss_bp / num_batches,
         total_correct_bp / total_seen,
         [l / num_batches for l in layer_loss_totals],
+        [c / total_seen for c in layer_correct_totals],
     )
 
 
@@ -235,7 +239,7 @@ def run_monofwd_training_dd(
     }
 
     for epoch in range(1, cfg.epochs + 1):
-        train_loss_ff, train_acc_ff, train_loss_bp, train_acc_bp, train_layer_losses = (
+        train_loss_ff, train_acc_ff, train_loss_bp, train_acc_bp, train_layer_losses, train_layer_accs = (
             train_monofwd_one_epoch_dd(
                 model,
                 train_loader,
@@ -275,8 +279,9 @@ def run_monofwd_training_dd(
             writer.add_scalar(f"{p}mono_bp/loss/val", val_loss_bp, epoch)
             writer.add_scalar(f"{p}mono_bp/acc/train", train_acc_bp, epoch)
             writer.add_scalar(f"{p}mono_bp/acc/val", val_acc_bp, epoch)
-            for i, layer_loss in enumerate(train_layer_losses):
+            for i, (layer_loss, layer_acc) in enumerate(zip(train_layer_losses, train_layer_accs)):
                 writer.add_scalar(f"{p}layer_loss/layer_{i}/train", layer_loss, epoch)
+                writer.add_scalar(f"{p}layer_acc/layer_{i}/train", layer_acc, epoch)
 
         if cfg.early_stopping:
             if early_stopping_improved(
