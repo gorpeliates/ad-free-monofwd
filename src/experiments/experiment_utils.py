@@ -23,17 +23,17 @@ logger = get_logger(__name__)
 # MLP: width 100, depth 10 (max of FFzero sweep), uniform across datasets.
 # CNN: (channels, conv_dropout) from FFzero Supp. Table 1; CIFAR scaled up to match complexity.
 _MLP_ARCH = {
-    "mnist":        (28 * 28,     [100] * 10),
-    "fashionmnist": (28 * 28,     [100] * 10),
-    "cifar10":      (32 * 32 * 3, [100] * 10),
-    "cifar100":     (32 * 32 * 3, [100] * 10),
+    "mnist":        (28 * 28,     [500]  * 2),
+    "fashionmnist": (28 * 28,     [1000] * 4),
+    "cifar10":      (32 * 32 * 3, [2000] * 6),
+    "cifar100":     (32 * 32 * 3, [2000] * 6),
 }
 
 _CNN_ARCH = {
-    "mnist":        ([32, 32],            0.0),
-    "fashionmnist": ([64, 64],            0.1),
-    "cifar10":      ([32, 64, 128, 256],  0.1),
-    "cifar100":     ([32, 64, 128, 256],  0.1),
+    "mnist":        ([32, 32],    0.0),
+    "fashionmnist": ([64, 64],    0.0),
+    "cifar10":      ([128, 128],  0.0),
+    "cifar100":     ([128, 128],  0.0),
 }
 
 

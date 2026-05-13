@@ -7,7 +7,7 @@ class ExperimentConfig:
     dataset: str = "mnist"
     model: str = "mlp"  # mlp | cnn
     batch_size: int = 256
-    epochs: int = 100
+    epochs: int = 200
     lr: float = 1e-3
     device: str = "cuda" if torch.cuda.is_available() else "cpu"
     seed: int = 42
