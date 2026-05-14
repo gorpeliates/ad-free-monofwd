@@ -49,13 +49,15 @@ def train_monofwd_one_epoch_dd(
     model: MonoFwdModel,
     dataloader: DataLoader,
     cfg: ExperimentConfig,
+    optimizer: torch.optim.Optimizer,
 ) -> tuple[float, float, float, float]:
     """
     Train any MonoFwd model for one epoch using directional-derivative updates.
     No autodiff — all gradient estimates come from finite-difference forward passes.
 
     For each block l and each parameter group (W and M):
-        w ← w − lr·(n/P) · sum_p [( L+ − L- )/(2eps)] · vhat_p
+        grad_estimate = (n/P) · sum_p [( L+ − L- )/(2eps)] · vhat_p
+        stored in .grad, then Adam optimizer.step() is called.
 
     Returns: total_loss_ff, acc_ff, total_loss_bp, acc_bp
     """
@@ -64,7 +66,6 @@ def train_monofwd_one_epoch_dd(
 
     eps = cfg.dd_eps
     P = cfg.dd_num_perturbations
-    lr = cfg.lr
 
     total_loss_ff = 0.0
     total_correct_ff = 0
@@ -118,8 +119,15 @@ def train_monofwd_one_epoch_dd(
                 dd = (L_plus - L_minus) / (2.0 * eps)
                 grad_acc_W += dd * v_hat
 
-            # apply W update
-            _apply_perturbation(w_params, -(lr * n_W / P) * grad_acc_W)
+            # store gradient estimate in .grad and let Adam step
+            optimizer.zero_grad()
+            flat_grad_W = (n_W / P) * grad_acc_W
+            idx = 0
+            for p in w_params:
+                n = p.numel()
+                p.grad = flat_grad_W[idx : idx + n].view_as(p).clone()
+                idx += n
+            optimizer.step()
 
             # --------------- M update -----------------------
 
@@ -141,7 +149,10 @@ def train_monofwd_one_epoch_dd(
                 dd = (L_plus - L_minus) / (2.0 * eps)
                 grad_acc_M += dd * u_hat
 
-            block.M.data -= (lr * n_M / P) * grad_acc_M.view_as(block.M)
+            # store gradient estimate in .grad and let Adam step
+            optimizer.zero_grad()
+            block.M.grad = ((n_M / P) * grad_acc_M).view_as(block.M).clone()
+            optimizer.step()
 
             #  collect logits and advance h to next block
             g_final = pre_proj_a @ block.M
@@ -238,12 +249,15 @@ def run_monofwd_training_dd(
         "early_stopping": {"best_epoch": 0, "stopped_epoch": 0},
     }
 
+    optimizer = torch.optim.Adam(model.parameters(), lr=cfg.lr)
+
     for epoch in range(1, cfg.epochs + 1):
         train_loss_ff, train_acc_ff, train_loss_bp, train_acc_bp, train_layer_losses, train_layer_accs = (
             train_monofwd_one_epoch_dd(
                 model,
                 train_loader,
                 cfg,
+                optimizer,
             )
         )
         val_loss_ff, val_acc_ff, val_loss_bp, val_acc_bp, val_layer_losses, val_layer_accs = evaluate_monofwd(
