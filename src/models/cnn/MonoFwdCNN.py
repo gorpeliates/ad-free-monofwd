@@ -11,13 +11,11 @@ class MonoFwdConvBlock(nn.Module):
         in_ch: int,
         out_ch: int,
         num_classes: int,
-        dropout: float = 0.0,
     ):
         super().__init__()
         # FFzero CNN: kernel 6x6, stride 1, padding 2
         self.conv = nn.Conv2d(in_ch, out_ch, kernel_size=6, stride=1, padding=2)
         self.bn = nn.BatchNorm2d(out_ch)
-        self.dropout_p = dropout
 
         m = num_classes
         n = out_ch
@@ -27,16 +25,14 @@ class MonoFwdConvBlock(nn.Module):
 
     def forward(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         """
-        Conv -> BN -> ReLU -> MaxPool (-> Dropout), per FFzero Supp. Fig. 4.
+        Conv -> BN -> ReLU -> MaxPool
         Returns (next_h, goodness).
         """
         x = self.conv(x)
         x = self.bn(x)
         a = F.relu(x)
         next_h = F.max_pool2d(a, kernel_size=2, stride=2)
-        if self.dropout_p > 0.0 and self.training:
-            next_h = F.dropout(next_h, p=self.dropout_p)
-
+        
         pooled_a = F.adaptive_avg_pool2d(a, (1, 1)).flatten(1)
         g = pooled_a @ self.M
 
@@ -49,7 +45,6 @@ class MonoFwdCNN(nn.Module):
         in_ch: int,
         channels: List[int],
         num_classes: int,
-        conv_dropout: float = 0.0,
     ):
         super().__init__()
         self.num_classes = num_classes
@@ -57,7 +52,7 @@ class MonoFwdCNN(nn.Module):
         self.blocks = nn.ModuleList(
             [
                 MonoFwdConvBlock(
-                    dims[i], dims[i + 1], num_classes, dropout=conv_dropout
+                    dims[i], dims[i + 1], num_classes
                 )
                 for i in range(len(channels))
             ]

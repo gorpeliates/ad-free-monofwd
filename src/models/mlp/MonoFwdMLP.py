@@ -6,10 +6,9 @@ import math
 
 
 class MonoFwdLinearBlock(nn.Module):
-    def __init__(self, in_dim: int, out_dim: int, num_classes: int, dropout: float = 0.0):
+    def __init__(self, in_dim: int, out_dim: int, num_classes: int):
         super().__init__()
         self.linear = nn.Linear(in_dim, out_dim)
-        self.dropout_p = dropout
 
         n, m = out_dim, num_classes
         self.M = nn.Parameter(torch.empty(n, m))
@@ -17,19 +16,17 @@ class MonoFwdLinearBlock(nn.Module):
 
     def forward(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         a = F.relu(self.linear(x))
-        if self.dropout_p > 0.0 and self.training:
-            a = F.dropout(a, p=self.dropout_p)
         g = a @ self.M
         return a, g
 
 
 class MonoFwdMLP(nn.Module):
-    def __init__(self, input_dim: int, hidden_dims: list[int], num_classes: int, dropout: float = 0.0):
+    def __init__(self, input_dim: int, hidden_dims: list[int], num_classes: int):
         super().__init__()
         dims = [input_dim] + hidden_dims
         self.blocks = nn.ModuleList(
             [
-                MonoFwdLinearBlock(dims[i], dims[i + 1], num_classes, dropout=dropout)
+                MonoFwdLinearBlock(dims[i], dims[i + 1], num_classes)
                 for i in range(len(hidden_dims))
             ]
         )

@@ -58,7 +58,6 @@ def parse_args() -> list[ExperimentConfig]:
         choices=["adam", "sgd"],
         help="Optimizer for AD/BP baselines (default: adam). DD always uses raw SGD with lr.",
     )
-    parser.add_argument("--dropout", type=float, default=0.1)
     parser.add_argument(
         "--logdir",
         type=str,

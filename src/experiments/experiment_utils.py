@@ -19,9 +19,7 @@ from models.mlp.BPMLP import BPMLP
 logger = get_logger(__name__)
 
 
-# FFzero based architectures per dataset.
-# MLP: width 100, depth 10 (max of FFzero sweep), uniform across datasets.
-# CNN: (channels, conv_dropout) from FFzero Supp. Table 1; CIFAR scaled up to match complexity.
+# architectures per dataset
 _MLP_ARCH = {
     "mnist":        (28 * 28,     [500]  * 2),
     "fashionmnist": (28 * 28,     [1000] * 4),
@@ -43,9 +41,9 @@ def _build_mono_model(
     ds = cfg.dataset.lower()
     if cfg.model == "mlp":
         input_dim, hidden_dims = _MLP_ARCH[ds]
-        return MonoFwdMLP(input_dim=input_dim, hidden_dims=hidden_dims, num_classes=num_classes, dropout=cfg.dropout)
+        return MonoFwdMLP(input_dim=input_dim, hidden_dims=hidden_dims, num_classes=num_classes)
     if cfg.model == "cnn":
-        return MonoFwdCNN(in_ch=in_channels, channels=_CNN_ARCH[ds], num_classes=num_classes, conv_dropout=cfg.dropout)
+        return MonoFwdCNN(in_ch=in_channels, channels=_CNN_ARCH[ds], num_classes=num_classes)
     raise ValueError(f"Unknown model type: {cfg.model}")
 
 
@@ -55,9 +53,9 @@ def _build_bp_model(
     ds = cfg.dataset.lower()
     if cfg.model == "mlp":
         input_dim, hidden_dims = _MLP_ARCH[ds]
-        return BPMLP(input_dim=input_dim, hidden_dims=hidden_dims, num_classes=num_classes, dropout=cfg.dropout)
+        return BPMLP(input_dim=input_dim, hidden_dims=hidden_dims, num_classes=num_classes)
     if cfg.model == "cnn":
-        return BPCNN(in_ch=in_channels, channels=_CNN_ARCH[ds], num_classes=num_classes, conv_dropout=cfg.dropout)
+        return BPCNN(in_ch=in_channels, channels=_CNN_ARCH[ds], num_classes=num_classes, )
     raise ValueError(f"Unknown model type: {cfg.model}")
 
 

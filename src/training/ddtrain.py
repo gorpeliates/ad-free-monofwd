@@ -246,7 +246,7 @@ def run_monofwd_training_dd(
                 cfg,
             )
         )
-        val_loss_ff, val_acc_ff, val_loss_bp, val_acc_bp = evaluate_monofwd(
+        val_loss_ff, val_acc_ff, val_loss_bp, val_acc_bp, val_layer_losses, val_layer_accs = evaluate_monofwd(
             model, val_loader, device=cfg.device
         )
         model.train()
@@ -282,6 +282,9 @@ def run_monofwd_training_dd(
             for i, (layer_loss, layer_acc) in enumerate(zip(train_layer_losses, train_layer_accs)):
                 writer.add_scalar(f"{p}layer_loss/layer_{i}/train", layer_loss, epoch)
                 writer.add_scalar(f"{p}layer_acc/layer_{i}/train", layer_acc, epoch)
+            for i, (layer_loss, layer_acc) in enumerate(zip(val_layer_losses, val_layer_accs)):
+                writer.add_scalar(f"{p}layer_loss/layer_{i}/val", layer_loss, epoch)
+                writer.add_scalar(f"{p}layer_acc/layer_{i}/val", layer_acc, epoch)
 
         if cfg.early_stopping:
             if early_stopping_improved(

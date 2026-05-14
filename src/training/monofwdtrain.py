@@ -108,7 +108,7 @@ def run_monofwd_training_ad(
         train_loss_ff, train_acc_ff, train_loss_bp, train_acc_bp, train_layer_losses, train_layer_accs = train_monofwd_one_epoch_autodiff(
             model, opts, train_loader, device=cfg.device,
         )
-        val_loss_ff, val_acc_ff, val_loss_bp, val_acc_bp = evaluate_monofwd(model, val_loader, device=cfg.device)
+        val_loss_ff, val_acc_ff, val_loss_bp, val_acc_bp, val_layer_losses, val_layer_accs = evaluate_monofwd(model, val_loader, device=cfg.device)
         model.train()
         best_val_acc_ff = max(best_val_acc_ff, val_acc_ff)
         best_val_acc_bp = max(best_val_acc_bp, val_acc_bp)
@@ -140,6 +140,9 @@ def run_monofwd_training_ad(
             for i, (layer_loss, layer_acc) in enumerate(zip(train_layer_losses, train_layer_accs)):
                 writer.add_scalar(f"{p}layer_loss/layer_{i}/train", layer_loss, epoch)
                 writer.add_scalar(f"{p}layer_acc/layer_{i}/train", layer_acc, epoch)
+            for i, (layer_loss, layer_acc) in enumerate(zip(val_layer_losses, val_layer_accs)):
+                writer.add_scalar(f"{p}layer_loss/layer_{i}/val", layer_loss, epoch)
+                writer.add_scalar(f"{p}layer_acc/layer_{i}/val", layer_acc, epoch)
 
         if cfg.early_stopping:
             if early_stopping_improved(best_val_loss, val_loss_ff, cfg.early_stopping_min_delta):
