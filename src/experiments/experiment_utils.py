@@ -114,6 +114,7 @@ def run_experiment_mlp(cfg: ExperimentConfig, run_name: str) -> dict:
                 test_loader,
                 cfg,
                 writer=writer,
+                tag_prefix="dd"
             )
             writer.close()
             return {
@@ -209,6 +210,7 @@ def run_experiment_cnn(cfg: ExperimentConfig, run_name: str) -> dict:
                 test_loader,
                 cfg,
                 writer=writer,
+                tag_prefix="dd"
             )
             writer.close()
             return {
