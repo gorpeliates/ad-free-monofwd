@@ -306,7 +306,7 @@ def run_monofwd_training_dd(
     if best_state is not None:
         model.load_state_dict(best_state)
 
-    test_loss_ff, test_acc_ff, test_loss_bp, test_acc_bp = evaluate_monofwd(
+    test_loss_ff, test_acc_ff, test_loss_bp, test_acc_bp, _, _ = evaluate_monofwd(
         model, test_loader, device=cfg.device
     )
     metrics["mono_ff"]["test_losses"].append(test_loss_ff)
