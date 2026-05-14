@@ -30,10 +30,10 @@ _MLP_ARCH = {
 }
 
 _CNN_ARCH = {
-    "mnist":        ([32, 32],    0.0),
-    "fashionmnist": ([64, 64],    0.0),
-    "cifar10":      ([128, 128],  0.0),
-    "cifar100":     ([128, 128],  0.0),
+    "mnist":        [32, 32],
+    "fashionmnist": [64, 64],
+    "cifar10":      [128, 128],
+    "cifar100":     [128, 128],
 }
 
 
@@ -43,10 +43,9 @@ def _build_mono_model(
     ds = cfg.dataset.lower()
     if cfg.model == "mlp":
         input_dim, hidden_dims = _MLP_ARCH[ds]
-        return MonoFwdMLP(input_dim=input_dim, hidden_dims=hidden_dims, num_classes=num_classes)
+        return MonoFwdMLP(input_dim=input_dim, hidden_dims=hidden_dims, num_classes=num_classes, dropout=cfg.dropout)
     if cfg.model == "cnn":
-        channels, conv_dropout = _CNN_ARCH[ds]
-        return MonoFwdCNN(in_ch=in_channels, channels=channels, num_classes=num_classes, conv_dropout=conv_dropout)
+        return MonoFwdCNN(in_ch=in_channels, channels=_CNN_ARCH[ds], num_classes=num_classes, conv_dropout=cfg.dropout)
     raise ValueError(f"Unknown model type: {cfg.model}")
 
 
@@ -56,10 +55,9 @@ def _build_bp_model(
     ds = cfg.dataset.lower()
     if cfg.model == "mlp":
         input_dim, hidden_dims = _MLP_ARCH[ds]
-        return BPMLP(input_dim=input_dim, hidden_dims=hidden_dims, num_classes=num_classes)
+        return BPMLP(input_dim=input_dim, hidden_dims=hidden_dims, num_classes=num_classes, dropout=cfg.dropout)
     if cfg.model == "cnn":
-        channels, conv_dropout = _CNN_ARCH[ds]
-        return BPCNN(in_ch=in_channels, channels=channels, num_classes=num_classes, conv_dropout=conv_dropout)
+        return BPCNN(in_ch=in_channels, channels=_CNN_ARCH[ds], num_classes=num_classes, conv_dropout=cfg.dropout)
     raise ValueError(f"Unknown model type: {cfg.model}")
 
 

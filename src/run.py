@@ -19,7 +19,7 @@ def parse_args() -> list[ExperimentConfig]:
     )
     parser.add_argument("--model", type=str, default="mlp", choices=["mlp", "cnn"])
     parser.add_argument("--batch_size", type=int, default=256)
-    parser.add_argument("--epochs", type=int, default=100)
+    parser.add_argument("--epochs", type=int, default=200)
     parser.add_argument("--lr", type=float, default=1e-3)
     parser.add_argument(
         "--device", type=str, default="cuda" if torch.cuda.is_available() else "cpu"
@@ -43,7 +43,7 @@ def parse_args() -> list[ExperimentConfig]:
         help="Training method to run: autodiff, dd, backprop, or all (default)",
     )
     parser.add_argument(
-        "--dd_eps", type=float, default=1e-3, help="Perturbation magnitude ε for MF+DD"
+        "--dd_eps", type=float, default=1e-3, help="Perturbation magnitude eps for MF+DD"
     )
     parser.add_argument(
         "--dd_num_perturbations",
@@ -58,6 +58,7 @@ def parse_args() -> list[ExperimentConfig]:
         choices=["adam", "sgd"],
         help="Optimizer for AD/BP baselines (default: adam). DD always uses raw SGD with lr.",
     )
+    parser.add_argument("--dropout", type=float, default=0.1)
     parser.add_argument(
         "--logdir",
         type=str,

@@ -21,6 +21,7 @@ class ExperimentConfig:
     dd_num_perturbations: int = 1
     tensorboard_logdir: str = "runs"
     optimizer: str = "adam"  # adam | sgd  (applies to AD/BP only, DD is only SGD with lr)
+    dropout: float = 0.1
 
     def run_name(self, timestamp: str) -> str:
         base = f"{self.model}_{self.dataset}"
