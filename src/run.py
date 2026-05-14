@@ -36,7 +36,7 @@ def parse_args() -> list[ExperimentConfig]:
     parser.add_argument("--early_stopping_patience", type=int, default=20)
     parser.add_argument("--early_stopping_min_delta", type=float, default=1e-4)
     parser.add_argument(
-        "--training_method",
+        "--train_method",
         type=str,
         default="all",
         choices=["autodiff", "dd", "backprop", "all"],

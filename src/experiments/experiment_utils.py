@@ -73,7 +73,7 @@ def mlp_dimensions(cfg: ExperimentConfig) -> Tuple[int, List[int]]:
 
 def run_experiment_mlp(cfg: ExperimentConfig, run_name: str) -> dict:
     """
-    Trains MLP models according to cfg.training_method:
+    Trains MLP models according to cfg.train_method:
       - 'all'      : runs autodiff, dd, and backprop; returns keys 'autodiff', 'dd', 'bp'
       - 'autodiff' : returns keys 'mono_ff', 'mono_bp', 'early_stopping'
       - 'dd'       : returns keys 'mono_ff', 'mono_bp', 'early_stopping'
@@ -90,7 +90,7 @@ def run_experiment_mlp(cfg: ExperimentConfig, run_name: str) -> dict:
     writer = SummaryWriter(log_dir=f"{cfg.tensorboard_logdir}/{run_name}")
     logger.info(f"TensorBoard logs: {cfg.tensorboard_logdir}/{run_name}")
 
-    match cfg.training_method:
+    match cfg.train_method:
         case "autodiff":
             metrics = run_monofwd_training_ad(
                 _build_mono_model(cfg, in_channels, num_classes).to(cfg.device),
@@ -163,12 +163,12 @@ def run_experiment_mlp(cfg: ExperimentConfig, run_name: str) -> dict:
                 },
             }
         case _:
-            raise ValueError(f"Unknown training_method: {cfg.training_method}")
+            raise ValueError(f"Unknown train_method: {cfg.train_method}")
 
 
 def run_experiment_cnn(cfg: ExperimentConfig, run_name: str) -> dict:
     """
-    Trains CNN models according to cfg.training_method:
+    Trains CNN models according to cfg.train_method:
       - 'all'      : runs autodiff, dd, and backprop; returns keys 'autodiff', 'dd', 'bp'
       - 'autodiff' : returns keys 'mono_ff', 'mono_bp', 'early_stopping'
       - 'dd'       : returns keys 'mono_ff', 'mono_bp', 'early_stopping'
@@ -185,7 +185,7 @@ def run_experiment_cnn(cfg: ExperimentConfig, run_name: str) -> dict:
     writer = SummaryWriter(log_dir=f"{cfg.tensorboard_logdir}/{run_name}")
     logger.info(f"TensorBoard logs: {cfg.tensorboard_logdir}/{run_name}")
 
-    match cfg.training_method:
+    match cfg.train_method:
         case "autodiff":
             metrics = run_monofwd_training_ad(
                 _build_mono_model(cfg, in_channels, num_classes).to(cfg.device),
@@ -258,7 +258,7 @@ def run_experiment_cnn(cfg: ExperimentConfig, run_name: str) -> dict:
                 },
             }
         case _:
-            raise ValueError(f"Unknown training_method: {cfg.training_method}")
+            raise ValueError(f"Unknown train_method: {cfg.train_method}")
 
 
 def run_experiment(cfg: ExperimentConfig, run_name: str) -> dict:
