@@ -1,0 +1,30 @@
+#!/bin/bash
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+DATASETS=("mnist" "fashionmnist" "cifar10")
+MODELS=("cnn" "mlp")
+ADAPTIVE_LR_SCALES=(100.0 150.0 300.0 500.0 1000.0)
+
+mkdir -p "$PROJECT_ROOT/runs/logs"
+
+echo "Submitting jobs for datasets: ${DATASETS[@]} | models: ${MODELS[@]} | adaptive_lr_scales: ${ADAPTIVE_LR_SCALES[@]}"
+
+for model in "${MODELS[@]}"; do
+    for dataset in "${DATASETS[@]}"; do
+        for scale in "${ADAPTIVE_LR_SCALES[@]}"; do
+            echo "Submitting: model=$model dataset=$dataset adaptive_lr_scale=$scale"
+            sbatch --job-name="monofwd_${model}_${dataset}_alrs${scale}" \
+                   --output="$PROJECT_ROOT/runs/logs/train_${model}_${dataset}_alrs${scale}_%j.out" \
+                   "$PROJECT_ROOT/scripts/train.slurm" \
+                   --dataset "$dataset" \
+                   --model "$model" \
+                   --train_method dd \
+                   --dd_adaptive_lr_scale "$scale" \
+                   --no-early-stopping
+        done
+    done
+done
+
+echo "All jobs submitted!"
