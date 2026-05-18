@@ -64,7 +64,9 @@ def train_monofwd_one_epoch_dd(
 
     eps = cfg.dd_eps
     P = cfg.dd_num_perturbations
-    lr = cfg.lr
+
+    n_params = sum(p.numel() for p in model.parameters())
+    lr = cfg.dd_adaptive_lr_scale / n_params
 
     total_loss_ff = 0.0
     total_correct_ff = 0

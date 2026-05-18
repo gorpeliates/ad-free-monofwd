@@ -52,6 +52,12 @@ def parse_args() -> list[ExperimentConfig]:
         help="Number of perturbation directions P per block per step for MF+DD",
     )
     parser.add_argument(
+        "--dd_adaptive_lr_scale",
+        type=float,
+        default=150.0,
+        help="Adaptive LR constant for DD: lr = dd_adaptive_lr_scale / n_params (default: 150)",
+    )
+    parser.add_argument(
         "--optimizer",
         type=str,
         default="adam",
