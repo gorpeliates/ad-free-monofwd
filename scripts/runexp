@@ -5,18 +5,21 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 DATASETS=("mnist" "fashionmnist" "cifar10")
 MODELS=("cnn" "mlp")
-
+OPTIMIZERS=("sgd" "adam")
 mkdir -p "$PROJECT_ROOT/runs/logs"
 
-echo "Submitting jobs for datasets: ${DATASETS[@]} with models: ${MODELS[@]}"
+echo "Submitting jobs for datasets: ${DATASETS[@]} with models: ${MODELS[@]} and optimizers: ${OPTIMIZERS[@]}"
 
 for model in "${MODELS[@]}"; do
     for dataset in "${DATASETS[@]}"; do
-        echo "Submitting: model=$model dataset=$dataset"
-        sbatch --job-name="monofwd_${model}_${dataset}" \
-               --output="$PROJECT_ROOT/runs/logs/train_${model}_${dataset}_%j.out" \
-               "$PROJECT_ROOT/scripts/train.slurm" --dataset "$dataset" --model "$model" \
-               --no-early-stopping
+        for optimizer in "${OPTIMIZERS[@]}"; do
+            echo "Submitting: model=$model dataset=$dataset optimizer=$optimizer"
+            sbatch --job-name="monofwd_${model}_${dataset}_${optimizer}" \
+                   --output="$PROJECT_ROOT/runs/logs/train_${model}_${dataset}_${optimizer}_%j.out" \
+                   "$PROJECT_ROOT/scripts/train.slurm" --dataset "$dataset" --model "$model" \
+                   --optimizer "$optimizer" \
+                   --no-early-stopping
+        done
     done
 done
 
