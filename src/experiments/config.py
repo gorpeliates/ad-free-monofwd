@@ -19,6 +19,7 @@ class ExperimentConfig:
     train_method: str = "all"  # autodiff | dd | backprop | all
     dd_eps: float = 1e-3
     dd_num_perturbations: int = 1
+    dd_mlp_fraction: float = 0.1  # fraction of MLP W-params per perturbation chunk
     tensorboard_logdir: str = "runs"
     optimizer: str = "adam"  # adam | sgd  (applies to AD/BP only, DD is only SGD with lr)
 

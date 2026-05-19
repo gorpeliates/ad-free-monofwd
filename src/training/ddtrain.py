@@ -44,6 +44,78 @@ def _get_pre_proj_activation(
     return next_h, pre_proj_a
 
 
+def _get_chunk_indices(
+    block: nn.Module,
+    w_params: list[nn.Parameter],
+    n_W: int,
+    dd_mlp_fraction: float,
+    device: torch.device,
+) -> list[torch.Tensor]:
+    """
+    Returns flat-index tensors defining independent perturbation chunks.
+
+    CNN  -> one chunk per output channel (conv weights + bias + BN weight + BN bias).
+            Shapes are: 
+                conv.weight: (out_ch, in_ch, kH, kW) 
+                conv.bias: (out_ch,) 
+                bn.weight: (out_ch,)
+                bn.bias: (out_ch,)
+    MLP  -> consecutive non-overlapping chunks of size int(n_W * dd_mlp_fraction).
+    """
+    # for cnn, use channel based
+    if isinstance(block, MonoFwdConvBlock):
+        out_ch = block.conv.out_channels
+
+        # find where each parameter sits in the flat vector
+        flat_offset = 0
+        
+        conv_start, n_per_ch = None, None 
+        scalar_bases = []  # indices of conv.bias, bn.weight, and bn.bias within the flat vector
+
+        # it is smth like [conv.weight | conv.bias | bn.weight | bn.bias]
+        
+        for p in w_params:
+            n = p.numel()
+
+            # if 
+            if p.shape == block.conv.weight.shape:
+                conv_start = flat_offset
+                # if dim = n, then we have n / out_ch parameters per output channel for conv.weight
+                n_per_ch = n // out_ch
+            
+            # conv.bias, bn.weight, and bn.bias all have shape (out_ch,)
+            elif n == out_ch:
+                scalar_bases.append(flat_offset)
+            flat_offset += n
+
+        chunks : list[torch.Tensor]= []
+
+        for c in range(out_ch):
+            conv_idx = torch.arange(
+                conv_start + c * n_per_ch, # start + channel offset * parameters per channel
+                conv_start + (c + 1) * n_per_ch,
+                device=device,
+            )
+            scalar_idx = torch.tensor(
+                [base + c for base in scalar_bases], device=device
+            )
+            # each chunk has the conv.weight parameters for one output channel 
+            # plus the corresponding conv.bias, bn.weight, and bn.bias params
+            chunks.append(torch.cat([conv_idx, scalar_idx]))
+        return chunks
+
+    # if mlp, use the fraction-based approach
+    elif isinstance(block, MonoFwdLinearBlock):
+        chunk_size = max(1, int(n_W * dd_mlp_fraction))
+        return [
+            torch.arange(start, min(start + chunk_size, n_W), device=device)
+            for start in range(0, n_W, chunk_size)
+        ]
+
+    else:
+        raise TypeError(f"Unsupported block type: {type(block)}")
+
+
 @torch.no_grad()
 def train_monofwd_one_epoch_dd(
     model: MonoFwdModel,
@@ -89,37 +161,46 @@ def train_monofwd_one_epoch_dd(
             block: MonoFwdConvBlock | MonoFwdLinearBlock
             # -------- W update --------------------------------
             w_params = [p for name, p in block.named_parameters() if name != "M"]
-
             n_W = sum(p.numel() for p in w_params)
-
-            grad_acc_W = torch.zeros(n_W, device=cfg.device)
+            chunks = _get_chunk_indices(block, w_params, n_W, cfg.dd_mlp_fraction, cfg.device)
 
             # Save BN running stats so perturbation passes don't corrupt them
             bn_state = _save_bn_state(block)
 
-            for _ in range(P):
-                v = torch.randn(n_W, device=cfg.device)
-                v_hat = v / v.norm()
+            for chunk_idxs in chunks:
+                n_chunk = len(chunk_idxs)
+                grad_acc_chunk = torch.zeros(n_chunk, device=cfg.device)
 
-                # +eps perturbation
-                _apply_perturbation(w_params, eps * v_hat)
-                _, g_plus = block.forward(h)
-                L_plus = F.cross_entropy(g_plus, y).item()
+                for _ in range(P):
+                    v = torch.randn(n_chunk, device=cfg.device)
+                    v_hat = v / v.norm()
 
-                # −2eps (net −eps from baseline)
-                _apply_perturbation(w_params, -2.0 * eps * v_hat)
-                _, g_minus = block.forward(h)
-                L_minus = F.cross_entropy(g_minus, y).item()
+                    # create a flat delta vector for the current chunk, with zeros elsewhere
+                    # it only updates the parameters in the current chunk
+                    delta = torch.zeros(n_W, device=cfg.device)
+                    delta[chunk_idxs] = eps * v_hat
 
-                # restore weights and BN stats after each pair
-                _apply_perturbation(w_params, eps * v_hat)
-                _restore_bn_state(block, bn_state)
+                    # +eps perturbation
+                    _apply_perturbation(w_params, delta)
+                    _, g_plus = block.forward(h)
+                    L_plus = F.cross_entropy(g_plus, y).item()
 
-                dd = (L_plus - L_minus) / (2.0 * eps)
-                grad_acc_W += dd * v_hat
+                    # −2eps (net −eps from baseline)
+                    _apply_perturbation(w_params, -2.0 * delta)
+                    _, g_minus = block.forward(h)
+                    L_minus = F.cross_entropy(g_minus, y).item()
 
-            # apply W update
-            _apply_perturbation(w_params, -(lr * n_W / P) * grad_acc_W)
+                    # restore weights and BN stats after each pair
+                    _apply_perturbation(w_params, delta)
+                    _restore_bn_state(block, bn_state)
+
+                    dd = (L_plus - L_minus) / (2.0 * eps)
+                    grad_acc_chunk += dd * v_hat
+
+                # use the apply perturbation function again to add the final update back into the parameters
+                delta_update = torch.zeros(n_W, device=cfg.device)
+                delta_update[chunk_idxs] = -(lr * n_chunk / P) * grad_acc_chunk
+                _apply_perturbation(w_params, delta_update)
 
             # --------------- M update -----------------------
 
