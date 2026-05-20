@@ -26,7 +26,7 @@ class ExperimentConfig:
         base = f"{self.model}_{self.dataset}"
 
         if self.train_method == "dd":
-            parts = f"dd_{self.optimizer}_{base}_eps{self.dd_eps}_P{self.dd_num_perturbations}"
+            parts = f"dd_{self.optimizer}_{base}_lr{self.lr}_P{self.dd_num_perturbations}"
         elif self.train_method == "autodiff":
             parts = f"autodiff_{base}_{self.optimizer}"
         elif self.train_method == "backprop":
