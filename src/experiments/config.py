@@ -34,4 +34,4 @@ class ExperimentConfig:
         else:
             parts = f"all_{base}_{self.optimizer}"
 
-        return f"{parts}_{timestamp}"
+        return f"woptim_{parts}_{timestamp}"
