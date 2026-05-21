@@ -43,7 +43,7 @@ def _build_mono_model(
         input_dim, hidden_dims = _MLP_ARCH[ds]
         return MonoFwdMLP(input_dim=input_dim, hidden_dims=hidden_dims, num_classes=num_classes)
     if cfg.model == "cnn":
-        return MonoFwdCNN(in_ch=in_channels, channels=_CNN_ARCH[ds], num_classes=num_classes)
+        return MonoFwdCNN(in_ch=in_channels, channels=_CNN_ARCH[ds], num_classes=num_classes, proj_dim=cfg.cnn_proj_dim)
     raise ValueError(f"Unknown model type: {cfg.model}")
 
 

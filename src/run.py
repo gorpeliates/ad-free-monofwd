@@ -65,6 +65,12 @@ def parse_args() -> list[ExperimentConfig]:
         help="Optimizer for AD/BP baselines (default: adam). DD always uses raw SGD with lr.",
     )
     parser.add_argument(
+        "--cnn_proj_dim",
+        type=int,
+        default=16,
+        help="FFZero channel-wise random projection dimension for CNN (default: 16)",
+    )
+    parser.add_argument(
         "--logdir",
         type=str,
         default="runs",

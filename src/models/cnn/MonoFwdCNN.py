@@ -11,17 +11,32 @@ class MonoFwdConvBlock(nn.Module):
         in_ch: int,
         out_ch: int,
         num_classes: int,
+        proj_dim: int = 16,
     ):
         super().__init__()
         # FFzero CNN: kernel 6x6, stride 1, padding 2
         self.conv = nn.Conv2d(in_ch, out_ch, kernel_size=6, stride=1, padding=2)
         self.bn = nn.BatchNorm2d(out_ch)
 
-        m = num_classes
-        n = out_ch
-        self.M = nn.Parameter(torch.empty(n, m))
-        nn.init.kaiming_uniform_(self.M, a=math.sqrt(5))
+        self.out_ch = out_ch
+        self.proj_dim = proj_dim
         self.num_classes = num_classes
+
+        # Trainable prototype matrix: proj_dim -> num_classes
+        self.M = nn.Parameter(torch.empty(proj_dim, num_classes))
+        nn.init.kaiming_uniform_(self.M, a=math.sqrt(5))
+
+        # Fixed random projection matrices, one per channel: [C, proj_dim, H*W]
+        # Registered as a buffer, not trainabke
+        #  initialized lazily on first forward pass
+        self.register_buffer('A', None)
+
+    def _init_projection(self, spatial_size: int, device: torch.device) -> None:
+        # A[c]: [proj_dim, H*W] random projection for channel c
+        A = torch.randn(self.out_ch, self.proj_dim, spatial_size, device=device)
+        # scale for normalization
+        A = A / math.sqrt(spatial_size)
+        self.register_buffer('A', A)
 
     def forward(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         """
@@ -32,9 +47,26 @@ class MonoFwdConvBlock(nn.Module):
         x = self.bn(x)
         a = F.relu(x)
         next_h = F.max_pool2d(a, kernel_size=2, stride=2)
-        
-        pooled_a = F.adaptive_avg_pool2d(a, (1, 1)).flatten(1)
-        g = pooled_a @ self.M
+
+        B, C, H, W = a.shape
+        spatial_size = H * W
+
+        # lazy init check
+        if self.A is None or self.A.shape[-1] != spatial_size:
+            self._init_projection(spatial_size, a.device)
+
+        # u: [B, C, H*W] — flatten spatial dims per channel
+        u = a.view(B, C, spatial_size)
+
+        # z: [B, C, proj_dim] — channel-wise random projection
+        # for each (b, c): u[b,c,:] @ A[c].T
+        z = u @ self.A.transpose(-1, -2)
+
+        # g per channel: [B, C, num_classes]
+        g_per_ch = z @ self.M
+
+        # Average goodness across channels -> [B, num_classes]
+        g = g_per_ch.mean(dim=1)
 
         return next_h, g
 
@@ -45,6 +77,7 @@ class MonoFwdCNN(nn.Module):
         in_ch: int,
         channels: List[int],
         num_classes: int,
+        proj_dim: int = 16,
     ):
         super().__init__()
         self.num_classes = num_classes
@@ -52,7 +85,7 @@ class MonoFwdCNN(nn.Module):
         self.blocks = nn.ModuleList(
             [
                 MonoFwdConvBlock(
-                    dims[i], dims[i + 1], num_classes
+                    dims[i], dims[i + 1], num_classes, proj_dim=proj_dim
                 )
                 for i in range(len(channels))
             ]
