@@ -254,9 +254,8 @@ def run_monofwd_training_dd(
     w_params_all = [p for block in model.blocks for name, p in block.named_parameters() if name != "M"]
     m_params_all = [block.M for block in model.blocks]
     n_W_total = sum(p.numel() for p in w_params_all)
-    n_M_total = sum(p.numel() for p in m_params_all)
     optimizer_W = torch.optim.Adam(w_params_all, lr=1.0 / math.sqrt(n_W_total))
-    optimizer_M = torch.optim.Adam(m_params_all, lr=1.0 / math.sqrt(n_M_total))
+    optimizer_M = torch.optim.Adam(m_params_all, lr=cfg.lr)
 
     for epoch in range(1, cfg.epochs + 1):
         train_loss_ff, train_acc_ff, train_loss_bp, train_acc_bp, train_layer_losses, train_layer_accs = (
