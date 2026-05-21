@@ -59,8 +59,8 @@ class MonoFwdConvBlock(nn.Module):
         u = a.view(B, C, spatial_size)
 
         # z: [B, C, proj_dim] — channel-wise random projection
-        # for each (b, c): u[b,c,:] @ A[c].T
-        z = u @ self.A.transpose(-1, -2)
+        
+        z = torch.einsum('bcs,cps->bcp', u, self.A)
 
         # g per channel: [B, C, num_classes]
         g_per_ch = z @ self.M

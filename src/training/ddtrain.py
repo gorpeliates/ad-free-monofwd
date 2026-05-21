@@ -34,7 +34,13 @@ def _get_pre_proj_activation(
         x = block.bn(x)
         a = F.relu(x)
         next_h = F.max_pool2d(a, kernel_size=2)
-        pre_proj_a = F.adaptive_avg_pool2d(a, (1, 1)).flatten(1)
+        B, C, H, W = a.shape
+        spatial_size = H * W
+        if block.A is None or block.A.shape[-1] != spatial_size:
+            block._init_projection(spatial_size, a.device)
+        u = a.view(B, C, spatial_size)
+        z = torch.einsum('bcs,cps->bcp', u, block.A)  # [B, C, proj_dim]
+        pre_proj_a = z.mean(dim=1)  # [B, proj_dim]
     elif isinstance(block, MonoFwdLinearBlock):
         pre_proj_a = F.relu(block.linear(h))
         next_h = pre_proj_a
