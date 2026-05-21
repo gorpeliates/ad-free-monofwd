@@ -21,10 +21,10 @@ logger = get_logger(__name__)
 
 # architectures per dataset
 _MLP_ARCH = {
-    "mnist":        (28 * 28,     [500]  * 2),
-    "fashionmnist": (28 * 28,     [1000] * 4),
-    "cifar10":      (32 * 32 * 3, [2000] * 6),
-    "cifar100":     (32 * 32 * 3, [2000] * 6),
+    "mnist":        (28 * 28,     [50]  * 2),
+    "fashionmnist": (28 * 28,     [100] * 3),
+    "cifar10":      (32 * 32 * 3, [200] * 4),
+    "cifar100":     (32 * 32 * 3, [200] * 4),
 }
 
 _CNN_ARCH = {

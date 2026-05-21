@@ -48,65 +48,55 @@ def _get_chunk_indices(
     block: nn.Module,
     w_params: list[nn.Parameter],
     n_W: int,
-    dd_mlp_fraction: float,
+    max_params_per_chunk: int,
     device: torch.device,
 ) -> list[torch.Tensor]:
     """
     Returns flat-index tensors defining independent perturbation chunks.
 
-    CNN  -> one chunk per output channel (conv weights + bias + BN weight + BN bias).
-            Shapes are: 
-                conv.weight: (out_ch, in_ch, kH, kW) 
-                conv.bias: (out_ch,) 
-                bn.weight: (out_ch,)
-                bn.bias: (out_ch,)
-    MLP  -> consecutive non-overlapping chunks of size int(n_W * dd_mlp_fraction).
+    CNN  -> whole channels are kept together; consecutive channels are grouped
+            until their cumulative parameter count reaches max_params_per_chunk.
+            Each channel contributes conv.weight slice + conv.bias + bn.weight + bn.bias.
+    MLP  -> consecutive non-overlapping chunks of size max_params_per_chunk.
+    Projection matrices (M) are always updated as a whole and are not chunked.
     """
-    # for cnn, use channel based
     if isinstance(block, MonoFwdConvBlock):
         out_ch = block.conv.out_channels
 
-        # find where each parameter sits in the flat vector
         flat_offset = 0
-        
-        conv_start, n_per_ch = None, None 
-        scalar_bases = []  # indices of conv.bias, bn.weight, and bn.bias within the flat vector
+        conv_start, n_per_ch = None, None
+        scalar_bases: list[int] = []
 
-        # it is smth like [conv.weight | conv.bias | bn.weight | bn.bias]
-        
         for p in w_params:
             n = p.numel()
-
-            # if 
             if p.shape == block.conv.weight.shape:
                 conv_start = flat_offset
-                # if dim = n, then we have n / out_ch parameters per output channel for conv.weight
                 n_per_ch = n // out_ch
-            
-            # conv.bias, bn.weight, and bn.bias all have shape (out_ch,)
             elif n == out_ch:
                 scalar_bases.append(flat_offset)
             flat_offset += n
 
-        chunks : list[torch.Tensor]= []
+        n_scalar_per_ch = len(scalar_bases)
+        params_per_ch = n_per_ch + n_scalar_per_ch
+        ch_per_chunk = max(1, max_params_per_chunk // params_per_ch)
 
-        for c in range(out_ch):
+        chunks: list[torch.Tensor] = []
+        for c_start in range(0, out_ch, ch_per_chunk):
+            c_end = min(c_start + ch_per_chunk, out_ch)
             conv_idx = torch.arange(
-                conv_start + c * n_per_ch, # start + channel offset * parameters per channel
-                conv_start + (c + 1) * n_per_ch,
+                conv_start + c_start * n_per_ch,
+                conv_start + c_end * n_per_ch,
                 device=device,
             )
             scalar_idx = torch.tensor(
-                [base + c for base in scalar_bases], device=device
+                [base + c for c in range(c_start, c_end) for base in scalar_bases],
+                device=device,
             )
-            # each chunk has the conv.weight parameters for one output channel 
-            # plus the corresponding conv.bias, bn.weight, and bn.bias params
             chunks.append(torch.cat([conv_idx, scalar_idx]))
         return chunks
 
-    # if mlp, use the fraction-based approach
     elif isinstance(block, MonoFwdLinearBlock):
-        chunk_size = max(1, int(n_W * dd_mlp_fraction))
+        chunk_size = max(1, max_params_per_chunk)
         return [
             torch.arange(start, min(start + chunk_size, n_W), device=device)
             for start in range(0, n_W, chunk_size)
@@ -121,13 +111,15 @@ def train_monofwd_one_epoch_dd(
     model: MonoFwdModel,
     dataloader: DataLoader,
     cfg: ExperimentConfig,
+    chunk_indices_W: list[list[torch.Tensor]],
 ) -> tuple[float, float, float, float]:
     """
     Train any MonoFwd model for one epoch using directional-derivative updates.
     No autodiff — all gradient estimates come from finite-difference forward passes.
 
-    For each block l and each parameter group (W and M):
-        w ← w − lr·(n/P) · sum_p [( L+ − L- )/(2eps)] · vhat_p
+    For each block l and each parameter chunk:
+        grad_estimate = (n_chunk/P) · sum_p [( L+ − L- )/(2eps)] · vhat_p
+        then a plain SGD step: params -= lr * grad_estimate
 
     Returns: total_loss_ff, acc_ff, total_loss_bp, acc_bp
     """
@@ -157,17 +149,16 @@ def train_monofwd_one_epoch_dd(
         h = x.flatten(1) if isinstance(model, MonoFwdMLP) else x
         logits_per_layer: list[torch.Tensor] = []
 
-        for block in model.blocks:
+        for i, block in enumerate(model.blocks):
             block: MonoFwdConvBlock | MonoFwdLinearBlock
             # -------- W update --------------------------------
             w_params = [p for name, p in block.named_parameters() if name != "M"]
             n_W = sum(p.numel() for p in w_params)
-            chunks = _get_chunk_indices(block, w_params, n_W, cfg.dd_mlp_fraction, cfg.device)
 
             # Save BN running stats so perturbation passes don't corrupt them
             bn_state = _save_bn_state(block)
 
-            for chunk_idxs in chunks:
+            for chunk_idxs in chunk_indices_W[i]:
                 n_chunk = len(chunk_idxs)
                 grad_acc_chunk = torch.zeros(n_chunk, device=cfg.device)
 
@@ -175,8 +166,6 @@ def train_monofwd_one_epoch_dd(
                     v = torch.randn(n_chunk, device=cfg.device)
                     v_hat = v / v.norm()
 
-                    # create a flat delta vector for the current chunk, with zeros elsewhere
-                    # it only updates the parameters in the current chunk
                     delta = torch.zeros(n_W, device=cfg.device)
                     delta[chunk_idxs] = eps * v_hat
 
@@ -197,9 +186,10 @@ def train_monofwd_one_epoch_dd(
                     dd = (L_plus - L_minus) / (2.0 * eps)
                     grad_acc_chunk += dd * v_hat
 
-                # use the apply perturbation function again to add the final update back into the parameters
+                # Plain SGD step for this chunk
+                grad_scaled = (n_chunk / P) * grad_acc_chunk
                 delta_update = torch.zeros(n_W, device=cfg.device)
-                delta_update[chunk_idxs] = -(lr * n_chunk / P) * grad_acc_chunk
+                delta_update[chunk_idxs] = -lr * grad_scaled
                 _apply_perturbation(w_params, delta_update)
 
             # --------------- M update -----------------------
@@ -222,7 +212,7 @@ def train_monofwd_one_epoch_dd(
                 dd = (L_plus - L_minus) / (2.0 * eps)
                 grad_acc_M += dd * u_hat
 
-            block.M.data -= (lr * n_M / P) * grad_acc_M.view_as(block.M)
+            block.M.data -= lr * (n_M / P) * grad_acc_M.view_as(block.M)
 
             #  collect logits and advance h to next block
             g_final = pre_proj_a @ block.M
@@ -319,12 +309,23 @@ def run_monofwd_training_dd(
         "early_stopping": {"best_epoch": 0, "stopped_epoch": 0},
     }
 
+    chunk_indices_W: list[list[torch.Tensor]] = []
+
+    for block in model.blocks:
+        w_params = [p for name, p in block.named_parameters() if name != "M"]
+        n_W = sum(p.numel() for p in w_params)
+        chunks = _get_chunk_indices(
+            block, w_params, n_W, cfg.dd_max_params_per_chunk, cfg.device
+        )
+        chunk_indices_W.append(chunks)
+
     for epoch in range(1, cfg.epochs + 1):
         train_loss_ff, train_acc_ff, train_loss_bp, train_acc_bp, train_layer_losses, train_layer_accs = (
             train_monofwd_one_epoch_dd(
                 model,
                 train_loader,
                 cfg,
+                chunk_indices_W,
             )
         )
         val_loss_ff, val_acc_ff, val_loss_bp, val_acc_bp, val_layer_losses, val_layer_accs = evaluate_monofwd(

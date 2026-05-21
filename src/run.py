@@ -52,10 +52,10 @@ def parse_args() -> list[ExperimentConfig]:
         help="Number of perturbation directions P per block per step for MF+DD",
     )
     parser.add_argument(
-        "--dd_mlp_fraction",
-        type=float,
-        default=0.1,
-        help="Fraction of MLP W-params per perturbation chunk for MF+DD (default: 0.1)",
+        "--dd_max_params_per_chunk",
+        type=int,
+        default=50000,
+        help="Max parameters perturbed at once per DD chunk (default: 50000)",
     )
     parser.add_argument(
         "--optimizer",

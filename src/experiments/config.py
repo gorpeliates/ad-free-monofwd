@@ -19,15 +19,15 @@ class ExperimentConfig:
     train_method: str = "all"  # autodiff | dd | backprop | all
     dd_eps: float = 1e-3
     dd_num_perturbations: int = 1
-    dd_mlp_fraction: float = 0.1  # fraction of MLP W-params per perturbation chunk
+    dd_max_params_per_chunk: int = 50000  # max parameters perturbed at once; layers are divided into chunks of this size
     tensorboard_logdir: str = "runs"
-    optimizer: str = "adam"  # adam | sgd  (applies to AD/BP only, DD is only SGD with lr)
+    optimizer: str = "adam"  # adam | sgd  (applies to AD/BP only)
 
     def run_name(self, timestamp: str) -> str:
         base = f"{self.model}_{self.dataset}"
 
         if self.train_method == "dd":
-            parts = f"dd_{base}_eps{self.dd_eps}_P{self.dd_num_perturbations}_lr{self.lr}_bs{self.batch_size}"
+            parts = f"freeze_dd_{base}_maxp{self.dd_max_params_per_chunk}_P{self.dd_num_perturbations}"
         elif self.train_method == "autodiff":
             parts = f"autodiff_{base}_{self.optimizer}_lr{self.lr}_bs{self.batch_size}"
         elif self.train_method == "backprop":
