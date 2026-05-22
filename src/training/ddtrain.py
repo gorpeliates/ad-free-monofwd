@@ -317,13 +317,16 @@ def run_monofwd_training_dd(
 
     chunk_indices_W: list[list[torch.Tensor]] = []
 
-    for block in model.blocks:
+    for i, block in enumerate(model.blocks):
         w_params = [p for name, p in block.named_parameters() if name != "M"]
         n_W = sum(p.numel() for p in w_params)
+        n_M = block.M.numel()
         chunks = _get_chunk_indices(
             block, w_params, n_W, cfg.dd_max_params_per_chunk, cfg.device
         )
         chunk_indices_W.append(chunks)
+        kind = "conv/bn" if isinstance(block, MonoFwdConvBlock) else "linear"
+        logger.info(f"Block {i}: {n_W} {kind} params ({len(chunks)} chunks) + {n_M} projection (M) params = {n_W + n_M} total trainable")
 
     for epoch in range(1, cfg.epochs + 1):
         train_loss_ff, train_acc_ff, train_loss_bp, train_acc_bp, train_layer_losses, train_layer_accs = (
