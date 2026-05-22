@@ -40,7 +40,7 @@ def _get_pre_proj_activation(
             block._init_projection(spatial_size, a.device)
         u = a.view(B, C, spatial_size)
         z = torch.einsum('bcs,cps->bcp', u, block.A)  # [B, C, proj_dim]
-        pre_proj_a = z.mean(dim=1)  # [B, proj_dim]
+        pre_proj_a = z.reshape(B, C * block.proj_dim)  # [B, C*proj_dim]
     elif isinstance(block, MonoFwdLinearBlock):
         pre_proj_a = F.relu(block.linear(h))
         next_h = pre_proj_a

@@ -22,8 +22,8 @@ class MonoFwdConvBlock(nn.Module):
         self.proj_dim = proj_dim
         self.num_classes = num_classes
 
-        # Trainable prototype matrix: proj_dim -> num_classes
-        self.M = nn.Parameter(torch.empty(proj_dim, num_classes))
+        # Trainable prototype matrix: [out_ch * proj_dim] -> num_classes
+        self.M = nn.Parameter(torch.empty(out_ch * proj_dim, num_classes))
         nn.init.kaiming_uniform_(self.M, a=math.sqrt(5))
 
         # Fixed random projection matrices, one per channel: [C, proj_dim, H*W]
@@ -62,11 +62,11 @@ class MonoFwdConvBlock(nn.Module):
         
         z = torch.einsum('bcs,cps->bcp', u, self.A)
 
-        # g per channel: [B, C, num_classes]
-        g_per_ch = z @ self.M
+        # flatten all channel projections -> [B, C*proj_dim]
+        z_flat = z.reshape(B, C * self.proj_dim)
 
-        # Average goodness across channels -> [B, num_classes]
-        g = g_per_ch.mean(dim=1)
+        # g: [B, num_classes]
+        g = z_flat @ self.M
 
         return next_h, g
 
