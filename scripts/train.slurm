@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --partition=gpu-a100-small
-#SBATCH --time=01:30:00
+#SBATCH --time=02:30:00
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=2
 #SBATCH --gpus-per-task=1
