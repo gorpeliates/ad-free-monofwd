@@ -112,12 +112,37 @@ def _get_chunk_indices(
         raise TypeError(f"Unsupported block type: {type(block)}")
 
 
+def _get_chunk_row_ranges_M(
+    block: nn.Module,
+    max_params_per_chunk: int,
+) -> list[tuple[int, int]]:
+    """
+    Row-based chunks for M, analogous to channel-based chunks for conv weights.
+
+    CNN  -> proj_dim rows = one channel's projection; pack as many channels as
+            fit within max_params_per_chunk (each row has num_classes params).
+    MLP  -> simple row chunks sized by max_params_per_chunk.
+    """
+    n_rows, n_cols = block.M.shape
+    if isinstance(block, MonoFwdConvBlock):
+        proj_dim = block.proj_dim
+        ch_per_chunk = max(1, max_params_per_chunk // (proj_dim * n_cols))
+        rows_per_chunk = ch_per_chunk * proj_dim
+    else:
+        rows_per_chunk = max(1, max_params_per_chunk // n_cols)
+    return [
+        (start, min(start + rows_per_chunk, n_rows))
+        for start in range(0, n_rows, rows_per_chunk)
+    ]
+
+
 @torch.no_grad()
 def train_monofwd_one_epoch_dd(
     model: MonoFwdModel,
     dataloader: DataLoader,
     cfg: ExperimentConfig,
     chunk_indices_W: list[list[torch.Tensor]],
+    chunk_row_ranges_M: list[list[tuple[int, int]]],
 ) -> tuple[float, float, float, float]:
     """
     Train any MonoFwd model for one epoch using directional-derivative updates.
@@ -198,27 +223,31 @@ def train_monofwd_one_epoch_dd(
                 delta_update[chunk_idxs] = -lr * grad_scaled
                 _apply_perturbation(w_params, delta_update)
 
-            # --------------- M update -----------------------
+            # --------------- M update (row-chunked) --------
 
             next_h, pre_proj_a = _get_pre_proj_activation(block, h)
-            n_M = block.M.numel()
-            grad_acc_M = torch.zeros(n_M, device=cfg.device)
 
-            for _ in range(P):
-                u = torch.randn(n_M, device=cfg.device)
-                u_hat = u / u.norm()
-                u_hat_mat = u_hat.view_as(block.M)
+            for row_start, row_end in chunk_row_ranges_M[i]:
+                n_chunk_M = (row_end - row_start) * block.M.shape[1]
+                grad_acc_M = torch.zeros(row_end - row_start, block.M.shape[1], device=cfg.device)
 
-                g_plus = pre_proj_a @ (block.M + eps * u_hat_mat)
-                L_plus = F.cross_entropy(g_plus, y).item()
+                for _ in range(P):
+                    u = torch.randn(row_end - row_start, block.M.shape[1], device=cfg.device)
+                    u_hat = u / u.norm()
 
-                g_minus = pre_proj_a @ (block.M - eps * u_hat_mat)
-                L_minus = F.cross_entropy(g_minus, y).item()
+                    block.M.data[row_start:row_end] += eps * u_hat
+                    g_plus = pre_proj_a @ block.M
+                    L_plus = F.cross_entropy(g_plus, y).item()
 
-                dd = (L_plus - L_minus) / (2.0 * eps)
-                grad_acc_M += dd * u_hat
+                    block.M.data[row_start:row_end] -= 2.0 * eps * u_hat
+                    g_minus = pre_proj_a @ block.M
+                    L_minus = F.cross_entropy(g_minus, y).item()
 
-            block.M.data -= lr * (n_M / P) * grad_acc_M.view_as(block.M)
+                    block.M.data[row_start:row_end] += eps * u_hat  # restore
+                    dd = (L_plus - L_minus) / (2.0 * eps)
+                    grad_acc_M += dd * u_hat
+
+                block.M.data[row_start:row_end] -= lr * (n_chunk_M / P) * grad_acc_M
 
             #  collect logits and advance h to next block
             g_final = pre_proj_a @ block.M
@@ -316,6 +345,7 @@ def run_monofwd_training_dd(
     }
 
     chunk_indices_W: list[list[torch.Tensor]] = []
+    chunk_row_ranges_M: list[list[tuple[int, int]]] = []
 
     for i, block in enumerate(model.blocks):
         w_params = [p for name, p in block.named_parameters() if name != "M"]
@@ -324,9 +354,11 @@ def run_monofwd_training_dd(
         chunks = _get_chunk_indices(
             block, w_params, n_W, cfg.dd_max_params_per_chunk, cfg.device
         )
+        m_ranges = _get_chunk_row_ranges_M(block, cfg.dd_max_params_per_chunk)
         chunk_indices_W.append(chunks)
+        chunk_row_ranges_M.append(m_ranges)
         kind = "conv/bn" if isinstance(block, MonoFwdConvBlock) else "linear"
-        logger.info(f"Block {i}: {n_W} {kind} params ({len(chunks)} chunks) + {n_M} projection (M) params = {n_W + n_M} total trainable")
+        logger.info(f"Block {i}: {n_W} {kind} params ({len(chunks)} chunks) + {n_M} projection (M) params ({len(m_ranges)} chunks) = {n_W + n_M} total trainable")
 
     for epoch in range(1, cfg.epochs + 1):
         train_loss_ff, train_acc_ff, train_loss_bp, train_acc_bp, train_layer_losses, train_layer_accs = (
@@ -335,6 +367,7 @@ def run_monofwd_training_dd(
                 train_loader,
                 cfg,
                 chunk_indices_W,
+                chunk_row_ranges_M,
             )
         )
         val_loss_ff, val_acc_ff, val_loss_bp, val_acc_bp, val_layer_losses, val_layer_accs = evaluate_monofwd(
