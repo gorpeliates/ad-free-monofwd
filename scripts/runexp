@@ -3,7 +3,7 @@
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-DATASETS=("mnist" "fashionmnist" "cifar10")
+DATASETS=("mnist" "fashionmnist" "cifar10" "cifar100")
 MODELS=("cnn" "mlp")
 
 mkdir -p "$PROJECT_ROOT/runs/logs"
@@ -15,7 +15,10 @@ for model in "${MODELS[@]}"; do
         echo "Submitting: model=$model dataset=$dataset"
         sbatch --job-name="monofwd_${model}_${dataset}" \
                --output="$PROJECT_ROOT/runs/logs/train_${model}_${dataset}_%j.out" \
-               "$PROJECT_ROOT/scripts/train.slurm" --dataset "$dataset" --model "$model" \
+               "$PROJECT_ROOT/scripts/train.slurm" \
+               --dataset "$dataset" \
+               --model "$model" \
+               --epochs 200 \
                --no-early-stopping
     done
 done

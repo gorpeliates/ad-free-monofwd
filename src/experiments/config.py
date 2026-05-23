@@ -30,10 +30,10 @@ class ExperimentConfig:
         if self.train_method == "dd":
             parts = f"freeze_dd_{base}_maxp{self.dd_max_params_per_chunk}_P{self.dd_num_perturbations}"
         elif self.train_method == "autodiff":
-            parts = f"autodiff_{base}_{self.optimizer}_lr{self.lr}_bs{self.batch_size}"
+            parts = f"autodiff_{base}_{self.optimizer}_lr{self.lr}"
         elif self.train_method == "backprop":
-            parts = f"bp_{base}_{self.optimizer}_lr{self.lr}_bs{self.batch_size}"
+            parts = f"bp_{base}_{self.optimizer}_lr{self.lr}"
         else:
-            parts = f"all_{base}_{self.optimizer}_lr{self.lr}_bs{self.batch_size}"
+            parts = f"all_{base}_{self.optimizer}_lr{self.lr}"
 
         return f"{parts}_{timestamp}"
