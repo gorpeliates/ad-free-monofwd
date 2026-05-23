@@ -21,7 +21,7 @@ class ExperimentConfig:
     dd_num_perturbations: int = 1
     dd_max_params_per_chunk: int = 50000  # max parameters perturbed at once; layers are divided into chunks of this size
     tensorboard_logdir: str = "runs"
-    optimizer: str = "adam"  # adam | sgd  (applies to AD/BP only)
+    optimizer: str = "sgd"  # adam | sgd  (applies to AD/BP only)
     cnn_proj_dim: int = 16  # FFZero channel-wise random projection dimension
 
     def run_name(self, timestamp: str) -> str:
