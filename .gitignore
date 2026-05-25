@@ -10,3 +10,4 @@ logs/
 runs/
 notes.txt
 old-runs/
+*.svg

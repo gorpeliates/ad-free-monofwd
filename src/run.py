@@ -60,7 +60,7 @@ def parse_args() -> list[ExperimentConfig]:
     parser.add_argument(
         "--optimizer",
         type=str,
-        default="adam",
+        default="sgd",
         choices=["adam", "sgd"],
         help="Optimizer for AD/BP baselines (default: adam). DD always uses raw SGD with lr.",
     )

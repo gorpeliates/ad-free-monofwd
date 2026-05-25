@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --partition=gpu-a100-small
-#SBATCH --time=02:30:00
+#SBATCH --time=04:00:00
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=2
 #SBATCH --gpus-per-task=1
@@ -12,4 +12,4 @@ cd "$SLURM_SUBMIT_DIR"
 module load 2025
 module load cuda/12.9
 
-srun uv run python src/run.py --logdir runs "$@"
+srun uv run python src/run.py "$@"

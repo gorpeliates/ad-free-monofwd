@@ -5,21 +5,25 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 DATASETS=("mnist" "fashionmnist" "cifar10" "cifar100")
 MODELS=("cnn" "mlp")
+TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
+RUNDIR="$PROJECT_ROOT/runs/experiment_all_${TIMESTAMP}"
 
-mkdir -p "$PROJECT_ROOT/runs/logs"
+mkdir -p "$RUNDIR/logs"
 
 echo "Submitting jobs for datasets: ${DATASETS[@]} with models: ${MODELS[@]}"
+echo "Run directory: $RUNDIR"
 
 for model in "${MODELS[@]}"; do
     for dataset in "${DATASETS[@]}"; do
         echo "Submitting: model=$model dataset=$dataset"
-        sbatch --job-name="monofwd_${model}_${dataset}" \
-               --output="$PROJECT_ROOT/runs/logs/train_${model}_${dataset}_%j.out" \
+        sbatch --job-name="exp_${model}_${dataset}" \
+               --output="$RUNDIR/logs/train_${model}_${dataset}_%j.out" \
                "$PROJECT_ROOT/scripts/train.slurm" \
                --dataset "$dataset" \
                --model "$model" \
                --epochs 200 \
-               --no-early-stopping
+               --no-early-stopping \
+               --logdir "$RUNDIR"
     done
 done
 

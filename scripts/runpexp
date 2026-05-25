@@ -1,0 +1,31 @@
+#!/bin/bash
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+MODELS=("cnn" "mlp")
+TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
+RUNDIR="$PROJECT_ROOT/runs/experiment_p_${TIMESTAMP}"
+
+mkdir -p "$RUNDIR/logs"
+
+echo "Submitting experiments for Different Ps with models: ${MODELS[@]}"
+echo "Run directory: $RUNDIR"
+
+for model in "${MODELS[@]}"; do
+    for P in 1 2 4 8; do
+        echo "Submitting: model=$model dataset=fashionmnist P=$P"
+            sbatch --job-name="Pexp_${model}_P${P}" \
+                --output="$RUNDIR/logs/train_${model}_P${P}_%j.out" \
+                "$PROJECT_ROOT/scripts/train.slurm" \
+                --dataset "fashionmnist" \
+                --model "$model" \
+                --epochs 200 \
+                --no-early-stopping \
+                --train_method dd \
+                --dd_num_perturbations $P \
+                --logdir "$RUNDIR"
+    done
+done
+
+echo "All jobs submitted!"
