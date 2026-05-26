@@ -3,13 +3,15 @@
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
+SEED=${1:-42}
+
 MODELS=("cnn" "mlp")
 TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
 RUNDIR="$PROJECT_ROOT/runs/experiment_p_${TIMESTAMP}"
 
 mkdir -p "$RUNDIR/logs"
 
-echo "Submitting experiments for Different Ps with models: ${MODELS[@]}"
+echo "Submitting experiments for Different Ps with models: ${MODELS[@]} seed: $SEED"
 echo "Run directory: $RUNDIR"
 
 for model in "${MODELS[@]}"; do
@@ -24,7 +26,8 @@ for model in "${MODELS[@]}"; do
                 --no-early-stopping \
                 --train_method dd \
                 --dd_num_perturbations $P \
-                --logdir "$RUNDIR"
+                --logdir "$RUNDIR" \
+                --seed $SEED
     done
 done
 

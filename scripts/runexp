@@ -3,6 +3,8 @@
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
+SEED=${1:-42}
+
 DATASETS=("mnist" "fashionmnist" "cifar10" "cifar100")
 MODELS=("cnn" "mlp")
 TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
@@ -10,7 +12,7 @@ RUNDIR="$PROJECT_ROOT/runs/experiment_all_${TIMESTAMP}"
 
 mkdir -p "$RUNDIR/logs"
 
-echo "Submitting jobs for datasets: ${DATASETS[@]} with models: ${MODELS[@]}"
+echo "Submitting jobs for datasets: ${DATASETS[@]} with models: ${MODELS[@]} seed: $SEED"
 echo "Run directory: $RUNDIR"
 
 for model in "${MODELS[@]}"; do
@@ -24,7 +26,8 @@ for model in "${MODELS[@]}"; do
                --epochs 200 \
                --no-early-stopping \
                --dd_num_perturbations 8 \
-               --logdir "$RUNDIR"
+               --logdir "$RUNDIR" \
+               --seed $SEED
     done
 done
 
