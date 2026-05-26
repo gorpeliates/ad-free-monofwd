@@ -23,6 +23,7 @@ for model in "${MODELS[@]}"; do
                --model "$model" \
                --epochs 200 \
                --no-early-stopping \
+               --dd_num_perturbations 8 \
                --logdir "$RUNDIR"
     done
 done
