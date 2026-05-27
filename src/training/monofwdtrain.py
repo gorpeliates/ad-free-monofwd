@@ -99,8 +99,8 @@ def run_monofwd_training_ad(
     p = f"{tag_prefix}/" if tag_prefix else ""
 
     metrics = {
-        "mono_ff": {"train_losses": [], "train_accs": [], "val_losses": [], "val_accs": [], "test_losses": [], "test_accs": []},
-        "mono_bp": {"train_losses": [], "train_accs": [], "val_losses": [], "val_accs": [], "test_losses": [], "test_accs": []},
+        "mono_ff": {"test_acc": 0.0},
+        "mono_bp": {"test_acc": 0.0},
         "early_stopping": {"best_epoch": 0, "stopped_epoch": 0},
     }
 
@@ -112,15 +112,6 @@ def run_monofwd_training_ad(
         model.train()
         best_val_acc_ff = max(best_val_acc_ff, val_acc_ff)
         best_val_acc_bp = max(best_val_acc_bp, val_acc_bp)
-
-        metrics["mono_ff"]["train_losses"].append(train_loss_ff)
-        metrics["mono_ff"]["train_accs"].append(train_acc_ff)
-        metrics["mono_ff"]["val_losses"].append(val_loss_ff)
-        metrics["mono_ff"]["val_accs"].append(val_acc_ff)
-        metrics["mono_bp"]["train_losses"].append(train_loss_bp)
-        metrics["mono_bp"]["train_accs"].append(train_acc_bp)
-        metrics["mono_bp"]["val_losses"].append(val_loss_bp)
-        metrics["mono_bp"]["val_accs"].append(val_acc_bp)
 
         logger.info(
             f"\n[MonoFwd Epoch {epoch}/{cfg.epochs}]\n"
@@ -160,9 +151,7 @@ def run_monofwd_training_ad(
     if best_state is not None:
         model.load_state_dict(best_state)
 
-    test_loss_ff, test_acc_ff, test_loss_bp, test_acc_bp, _, _ = evaluate_monofwd(model, test_loader, device=cfg.device)
-    metrics["mono_ff"]["test_losses"].append(test_loss_ff)
-    metrics["mono_ff"]["test_accs"].append(test_acc_ff)
-    metrics["mono_bp"]["test_losses"].append(test_loss_bp)
-    metrics["mono_bp"]["test_accs"].append(test_acc_bp)
+    _, test_acc_ff, _, test_acc_bp, _, _ = evaluate_monofwd(model, test_loader, device=cfg.device)
+    metrics["mono_ff"]["test_acc"] = test_acc_ff
+    metrics["mono_bp"]["test_acc"] = test_acc_bp
     return metrics

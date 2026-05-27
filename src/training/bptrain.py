@@ -62,14 +62,9 @@ def run_bp_training(
     writer: Optional[SummaryWriter] = None,
     tag_prefix: str = "",
 ) -> dict:
-    """Runs standard BP training with early stopping based on validation loss. Returns metrics for BP predictor.
+    """Runs standard BP training with early stopping based on validation loss.
     Returns:
-        metrics (dict): Structure is as follows:
-        {
-
-            'bp': {'train_losses': [...], 'train_accs': [...], 'val_losses': [...], 'val_accs': [...], 'test_losses': [...], 'test_accs': [...]},
-            'early_stopping': {'best_epoch': int, 'stopped_epoch': int}
-        }
+        {'bp': {'test_acc': float}, 'early_stopping': {'best_epoch': int, 'stopped_epoch': int}}
     """
 
     p = f"{tag_prefix}/" if tag_prefix else ""
@@ -83,14 +78,7 @@ def run_bp_training(
     best_val_acc = 0.0
 
     metrics = {
-        "bp": {
-            "train_losses": [],
-            "train_accs": [],
-            "val_losses": [],
-            "val_accs": [],
-            "test_losses": [],
-            "test_accs": [],
-        },
+        "bp": {"test_acc": 0.0},
         "early_stopping": {"best_epoch": 0, "stopped_epoch": 0},
     }
 
@@ -101,11 +89,6 @@ def run_bp_training(
         val_loss, val_acc = evaluate_bp(model, val_loader, device=cfg.device)
         model.train()
         best_val_acc = max(best_val_acc, val_acc)
-
-        metrics["bp"]["train_losses"].append(train_loss)
-        metrics["bp"]["train_accs"].append(train_acc)
-        metrics["bp"]["val_losses"].append(val_loss)
-        metrics["bp"]["val_accs"].append(val_acc)
 
         logger.info(
             f"\n[BP Epoch {epoch}/{cfg.epochs}]\n"
@@ -138,9 +121,8 @@ def run_bp_training(
     if cfg.early_stopping and best_state is not None:
         model.load_state_dict(best_state)
 
-    test_loss, test_acc = evaluate_bp(model, test_loader, device=cfg.device)
-    metrics["bp"]["test_losses"].append(test_loss)
-    metrics["bp"]["test_accs"].append(test_acc)
+    _, test_acc = evaluate_bp(model, test_loader, device=cfg.device)
+    metrics["bp"]["test_acc"] = test_acc
     return metrics
 
 
