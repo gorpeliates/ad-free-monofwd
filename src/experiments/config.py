@@ -33,6 +33,8 @@ class ExperimentConfig:
             parts = f"autodiff_{base}_{self.optimizer}_lr{self.lr}"
         elif self.train_method == "backprop":
             parts = f"bp_{base}"
+        elif self.train_method == "bp_autodiff":
+            parts = f"bp_autodiff_{base}_{self.optimizer}_lr{self.lr}"
         else:
             parts = f"all_{base}"
 

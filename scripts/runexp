@@ -5,30 +5,73 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 SEED=${1:-42}
 
-DATASETS=("mnist" "fashionmnist" "cifar10" "cifar100")
+ALL_DATASETS=("mnist" "fashionmnist" "cifar10" "cifar100")
+SMALL_DATASETS=("mnist" "fashionmnist")
+CIFAR_DATASETS=("cifar10" "cifar100")
 MODELS=("cnn" "mlp")
 TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
 RUNDIR="$PROJECT_ROOT/runs/experiment_all_${TIMESTAMP}"
 
 mkdir -p "$RUNDIR/logs"
 
-echo "Submitting jobs for datasets: ${DATASETS[@]} with models: ${MODELS[@]} seed: $SEED"
+echo "Submitting jobs for seed: $SEED"
 echo "Run directory: $RUNDIR"
 
+echo ""
+echo "=== Group 1: BP + autodiff (all datasets) ==="
 for model in "${MODELS[@]}"; do
-    for dataset in "${DATASETS[@]}"; do
-        echo "Submitting: model=$model dataset=$dataset"
-        sbatch --job-name="exp_${model}_${dataset}" \
-               --output="$RUNDIR/logs/train_${model}_${dataset}_%j.out" \
+    for dataset in "${ALL_DATASETS[@]}"; do
+        echo "  Submitting bp_autodiff: model=$model dataset=$dataset"
+        sbatch --job-name="bpad_${model}_${dataset}" \
+               --output="$RUNDIR/logs/bpad_${model}_${dataset}_%j.out" \
                "$PROJECT_ROOT/scripts/train.slurm" \
                --dataset "$dataset" \
                --model "$model" \
                --epochs 200 \
                --no-early-stopping \
-               --dd_num_perturbations 8 \
+               --train_method bp_autodiff \
                --logdir "$RUNDIR" \
                --seed $SEED
     done
 done
 
-echo "All jobs submitted!"
+echo ""
+echo "=== Group 2: DD mnist/fashionmnist (gpu-a100-small, 4h) ==="
+for model in "${MODELS[@]}"; do
+    for dataset in "${SMALL_DATASETS[@]}"; do
+        echo "  Submitting dd: model=$model dataset=$dataset P=4"
+        sbatch --job-name="dd_${model}_${dataset}" \
+               --output="$RUNDIR/logs/dd_${model}_${dataset}_%j.out" \
+               "$PROJECT_ROOT/scripts/train.slurm" \
+               --dataset "$dataset" \
+               --model "$model" \
+               --epochs 200 \
+               --no-early-stopping \
+               --train_method dd \
+               --dd_num_perturbations 4 \
+               --logdir "$RUNDIR" \
+               --seed $SEED
+    done
+done
+
+echo ""
+echo "=== Group 3: DD cifar10/cifar100 (gpu partition, 8h) ==="
+for model in "${MODELS[@]}"; do
+    for dataset in "${CIFAR_DATASETS[@]}"; do
+        echo "  Submitting dd: model=$model dataset=$dataset P=4 (gpu partition)"
+        sbatch --job-name="dd_${model}_${dataset}" \
+               --output="$RUNDIR/logs/dd_${model}_${dataset}_%j.out" \
+               "$PROJECT_ROOT/scripts/train_gpu.slurm" \
+               --dataset "$dataset" \
+               --model "$model" \
+               --epochs 200 \
+               --no-early-stopping \
+               --train_method dd \
+               --dd_num_perturbations 4 \
+               --logdir "$RUNDIR" \
+               --seed $SEED
+    done
+done
+
+echo ""
+echo "All jobs submitted! Total: $((${#MODELS[@]} * (${#ALL_DATASETS[@]} + ${#SMALL_DATASETS[@]} + ${#CIFAR_DATASETS[@]}))) jobs"
