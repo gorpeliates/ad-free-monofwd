@@ -14,8 +14,8 @@ class MonoFwdConvBlock(nn.Module):
         proj_dim: int = 16,
     ):
         super().__init__()
-        # FFzero CNN: kernel 6x6, stride 1, padding 2
-        self.conv = nn.Conv2d(in_ch, out_ch, kernel_size=6, stride=1, padding=2)
+
+        self.conv = nn.Conv2d(in_ch, out_ch, kernel_size=3, stride=1, padding=1)
         self.bn = nn.BatchNorm2d(out_ch)
 
         self.out_ch = out_ch

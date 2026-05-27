@@ -3,7 +3,7 @@
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-SEED=${1:-42}
+SEED=${1:-123123}
 
 ALL_DATASETS=("mnist" "fashionmnist" "cifar10" "cifar100")
 SMALL_DATASETS=("mnist" "fashionmnist")
@@ -36,7 +36,7 @@ for model in "${MODELS[@]}"; do
 done
 
 echo ""
-echo "=== Group 2: DD mnist/fashionmnist (gpu-a100-small, 4h) ==="
+echo "=== Group 2: DD mnist/fashionmnist ==="
 for model in "${MODELS[@]}"; do
     for dataset in "${SMALL_DATASETS[@]}"; do
         echo "  Submitting dd: model=$model dataset=$dataset P=4"
@@ -55,13 +55,13 @@ for model in "${MODELS[@]}"; do
 done
 
 echo ""
-echo "=== Group 3: DD cifar10/cifar100 (gpu partition, 8h) ==="
+echo "=== Group 3: DD cifar10/cifar100 ==="
 for model in "${MODELS[@]}"; do
     for dataset in "${CIFAR_DATASETS[@]}"; do
-        echo "  Submitting dd: model=$model dataset=$dataset P=4 (gpu partition)"
+        echo "  Submitting dd: model=$model dataset=$dataset P=4 "
         sbatch --job-name="dd_${model}_${dataset}" \
                --output="$RUNDIR/logs/dd_${model}_${dataset}_%j.out" \
-               "$PROJECT_ROOT/scripts/train_gpu.slurm" \
+               "$PROJECT_ROOT/scripts/train.slurm" \
                --dataset "$dataset" \
                --model "$model" \
                --epochs 200 \

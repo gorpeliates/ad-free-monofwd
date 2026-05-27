@@ -8,8 +8,7 @@ import torch.nn.functional as F
 class BPConvBlock(nn.Module):
     def __init__(self, in_ch: int, out_ch: int):
         super().__init__()
-        # Match FFzero CNN: kernel 6x6, stride 1, padding 2
-        self.conv = nn.Conv2d(in_ch, out_ch, kernel_size=6, stride=1, padding=2)
+        self.conv = nn.Conv2d(in_ch, out_ch, kernel_size=3, stride=1, padding=1)
         self.bn = nn.BatchNorm2d(out_ch)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
