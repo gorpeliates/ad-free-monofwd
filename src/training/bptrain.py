@@ -83,9 +83,7 @@ def run_bp_training(
     }
 
     for epoch in range(1, cfg.epochs + 1):
-        train_loss, train_acc = train_bp_one_epoch(
-            model, optimizer, train_loader, cfg=cfg
-        )
+        train_loss, train_acc = train_bp_one_epoch(model, optimizer, train_loader, cfg=cfg)
         val_loss, val_acc = evaluate_bp(model, val_loader, device=cfg.device)
         model.train()
         best_val_acc = max(best_val_acc, val_acc)
@@ -102,9 +100,7 @@ def run_bp_training(
             writer.add_scalar(f"{p}bp/acc/val", val_acc, epoch)
 
         if cfg.early_stopping:
-            if early_stopping_improved(
-                best_val_loss, val_loss, cfg.early_stopping_min_delta
-            ):
+            if early_stopping_improved(best_val_loss, val_loss, cfg.early_stopping_min_delta):
                 best_val_loss = val_loss
                 bad_epochs = 0
                 best_state = deepcopy(model.state_dict())

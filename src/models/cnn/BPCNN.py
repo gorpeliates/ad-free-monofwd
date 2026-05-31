@@ -28,12 +28,7 @@ class BPCNN(nn.Module):
     ):
         super().__init__()
         dims = [in_ch] + channels
-        self.blocks = nn.Sequential(
-            *[
-                BPConvBlock(dims[i], dims[i + 1])
-                for i in range(len(channels))
-            ]
-        )
+        self.blocks = nn.Sequential(*[BPConvBlock(dims[i], dims[i + 1]) for i in range(len(channels))])
         self.classifier = nn.Linear(channels[-1], num_classes)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:

@@ -20,9 +20,7 @@ def block_parameter_groups(model: MonoFwdModel) -> List[List[nn.Parameter]]:
     return groups
 
 
-def build_optimizers(
-    model: MonoFwdModel, cfg: ExperimentConfig
-) -> List[torch.optim.Optimizer]:
+def build_optimizers(model: MonoFwdModel, cfg: ExperimentConfig) -> List[torch.optim.Optimizer]:
     opts = []
     for params in block_parameter_groups(model):
         if cfg.optimizer == "sgd":
@@ -32,8 +30,5 @@ def build_optimizers(
     return opts
 
 
-
-def early_stopping_improved(
-    best_loss: float, current_loss: float, min_delta: float
-) -> bool:
+def early_stopping_improved(best_loss: float, current_loss: float, min_delta: float) -> bool:
     return current_loss < best_loss - min_delta

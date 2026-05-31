@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 
+
 class BPMLP(nn.Module):
     def __init__(self, input_dim: int, hidden_dims: list[int], num_classes: int):
         super().__init__()

@@ -1,5 +1,4 @@
 import logging
-from datetime import datetime
 from pathlib import Path
 from experiments.config import ExperimentConfig
 
@@ -16,9 +15,7 @@ def setup_logging(cfg: ExperimentConfig, run_name: str) -> str:
     logger.handlers.clear()
     logger.propagate = False
 
-    formatter = logging.Formatter(
-        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-    )
+    formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 
     file_handler = logging.FileHandler(log_file)
     file_handler.setLevel(logging.INFO)

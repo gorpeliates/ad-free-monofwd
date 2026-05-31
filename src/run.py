@@ -14,16 +14,12 @@ DATASETS = ("mnist", "fashionmnist", "cifar10", "cifar100")
 
 def parse_args() -> list[ExperimentConfig]:
     parser = argparse.ArgumentParser(description="MonoFWD")
-    parser.add_argument(
-        "--dataset", type=str, nargs="+", default=["mnist"], choices=[*DATASETS, "all"]
-    )
+    parser.add_argument("--dataset", type=str, nargs="+", default=["mnist"], choices=[*DATASETS, "all"])
     parser.add_argument("--model", type=str, default="mlp", choices=["mlp", "cnn"])
     parser.add_argument("--batch_size", type=int, default=256)
     parser.add_argument("--epochs", type=int, default=200)
     parser.add_argument("--lr", type=float, default=1e-3)
-    parser.add_argument(
-        "--device", type=str, default="cuda" if torch.cuda.is_available() else "cpu"
-    )
+    parser.add_argument("--device", type=str, default="cuda" if torch.cuda.is_available() else "cpu")
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--data_root", type=str, default="./data")
     parser.add_argument("--num_workers", type=int, default=2)
@@ -42,9 +38,7 @@ def parse_args() -> list[ExperimentConfig]:
         choices=["autodiff", "dd", "backprop", "bp_autodiff", "all"],
         help="Training method to run: autodiff, dd, backprop, bp_autodiff, or all (default)",
     )
-    parser.add_argument(
-        "--dd_eps", type=float, default=1e-3, help="Perturbation magnitude eps for MF+DD"
-    )
+    parser.add_argument("--dd_eps", type=float, default=1e-3, help="Perturbation magnitude eps for MF+DD")
     parser.add_argument(
         "--dd_num_perturbations",
         type=int,
@@ -77,9 +71,7 @@ def parse_args() -> list[ExperimentConfig]:
         help="TensorBoard log directory (default: runs/)",
     )
     args = parser.parse_args()
-    datasets = (
-        list(DATASETS) if "all" in args.dataset else list(dict.fromkeys(args.dataset))
-    )
+    datasets = list(DATASETS) if "all" in args.dataset else list(dict.fromkeys(args.dataset))
 
     configs = []
     for dataset in datasets:

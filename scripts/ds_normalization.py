@@ -6,23 +6,22 @@ DATA_ROOT = "./data"
 
 # they need to be downloaded first, run download_datasets.py if you haven't done so already
 DATASETS = [
-    ("MNIST",        dsets.MNIST),
+    ("MNIST", dsets.MNIST),
     ("FashionMNIST", dsets.FashionMNIST),
-    ("CIFAR-10",     dsets.CIFAR10),
-    ("CIFAR-100",    dsets.CIFAR100),
+    ("CIFAR-10", dsets.CIFAR10),
+    ("CIFAR-100", dsets.CIFAR100),
 ]
 
 for name, cls in DATASETS:
-    print(f"\n{'='*50}")
+    print(f"\n{'=' * 50}")
     print(f"  {name}")
-    print(f"{'='*50}")
+    print(f"{'=' * 50}")
 
     data = cls(DATA_ROOT, train=True, transform=T.ToTensor(), download=False)
     imgs = torch.stack([img for img, _ in data])  # (Num_samples, Channels, H, W)
 
     computed_mean = imgs.mean(dim=(0, 2, 3))
-    computed_std  = imgs.std(dim=(0, 2, 3))
-
+    computed_std = imgs.std(dim=(0, 2, 3))
 
     n_channels = computed_mean.shape[0]
     ch_labels = ["R", "G", "B"] if n_channels == 3 else ["gray"]

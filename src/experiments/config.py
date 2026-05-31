@@ -19,7 +19,9 @@ class ExperimentConfig:
     train_method: str = "all"  # autodiff | dd | backprop | all
     dd_eps: float = 1e-3
     dd_num_perturbations: int = 1
-    dd_max_params_per_chunk: int = 50000  # max parameters perturbed at once; layers are divided into chunks of this size
+    dd_max_params_per_chunk: int = (
+        50000  # max parameters perturbed at once; layers are divided into chunks of this size
+    )
     tensorboard_logdir: str = "runs"
     optimizer: str = "sgd"  # adam | sgd  (applies to AD/BP only)
     cnn_proj_dim: int = 16  # FFZero channel-wise random projection dimension

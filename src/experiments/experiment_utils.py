@@ -21,41 +21,46 @@ logger = get_logger(__name__)
 
 # architectures per dataset
 _MLP_ARCH = {
-    "mnist":        (28 * 28,     [50]  * 2),
-    "fashionmnist": (28 * 28,     [100] * 3),
-    "cifar10":      (32 * 32 * 3, [200] * 4),
-    "cifar100":     (32 * 32 * 3, [200] * 4),
+    "mnist": (28 * 28, [50] * 2),
+    "fashionmnist": (28 * 28, [100] * 3),
+    "cifar10": (32 * 32 * 3, [200] * 4),
+    "cifar100": (32 * 32 * 3, [200] * 4),
 }
 
 _CNN_ARCH = {
-    "mnist":        [32, 32],
+    "mnist": [32, 32],
     "fashionmnist": [64, 64],
-    "cifar10":      [128, 128],
-    "cifar100":     [128, 128],
+    "cifar10": [128, 128],
+    "cifar100": [128, 128],
 }
 
 
-def _build_mono_model(
-    cfg: ExperimentConfig, in_channels: int, num_classes: int
-) -> nn.Module:
+def _build_mono_model(cfg: ExperimentConfig, in_channels: int, num_classes: int) -> nn.Module:
     ds = cfg.dataset.lower()
     if cfg.model == "mlp":
         input_dim, hidden_dims = _MLP_ARCH[ds]
         return MonoFwdMLP(input_dim=input_dim, hidden_dims=hidden_dims, num_classes=num_classes)
     if cfg.model == "cnn":
-        return MonoFwdCNN(in_ch=in_channels, channels=_CNN_ARCH[ds], num_classes=num_classes, proj_dim=cfg.cnn_proj_dim)
+        return MonoFwdCNN(
+            in_ch=in_channels,
+            channels=_CNN_ARCH[ds],
+            num_classes=num_classes,
+            proj_dim=cfg.cnn_proj_dim,
+        )
     raise ValueError(f"Unknown model type: {cfg.model}")
 
 
-def _build_bp_model(
-    cfg: ExperimentConfig, in_channels: int, num_classes: int
-) -> nn.Module:
+def _build_bp_model(cfg: ExperimentConfig, in_channels: int, num_classes: int) -> nn.Module:
     ds = cfg.dataset.lower()
     if cfg.model == "mlp":
         input_dim, hidden_dims = _MLP_ARCH[ds]
         return BPMLP(input_dim=input_dim, hidden_dims=hidden_dims, num_classes=num_classes)
     if cfg.model == "cnn":
-        return BPCNN(in_ch=in_channels, channels=_CNN_ARCH[ds], num_classes=num_classes, )
+        return BPCNN(
+            in_ch=in_channels,
+            channels=_CNN_ARCH[ds],
+            num_classes=num_classes,
+        )
     raise ValueError(f"Unknown model type: {cfg.model}")
 
 
@@ -83,9 +88,7 @@ def run_experiment_mlp(cfg: ExperimentConfig, run_name: str) -> dict:
     logger.info(f"Logs saved to: {log_file}")
 
     set_seed(cfg.seed)
-    train_loader, val_loader, test_loader, in_channels, num_classes = build_dataloaders(
-        cfg
-    )
+    train_loader, val_loader, test_loader, in_channels, num_classes = build_dataloaders(cfg)
 
     writer = SummaryWriter(log_dir=f"{cfg.tensorboard_logdir}/{run_name}")
     logger.info(f"TensorBoard logs: {cfg.tensorboard_logdir}/{run_name}")
@@ -99,7 +102,7 @@ def run_experiment_mlp(cfg: ExperimentConfig, run_name: str) -> dict:
                 test_loader,
                 cfg,
                 writer=writer,
-                tag_prefix= "autodiff",
+                tag_prefix="autodiff",
             )
             writer.close()
             return {
@@ -115,7 +118,7 @@ def run_experiment_mlp(cfg: ExperimentConfig, run_name: str) -> dict:
                 test_loader,
                 cfg,
                 writer=writer,
-                tag_prefix="dd"
+                tag_prefix="dd",
             )
             writer.close()
             return {
@@ -137,11 +140,21 @@ def run_experiment_mlp(cfg: ExperimentConfig, run_name: str) -> dict:
         case "bp_autodiff":
             ad_metrics = run_monofwd_training_ad(
                 _build_mono_model(cfg, in_channels, num_classes).to(cfg.device),
-                train_loader, val_loader, test_loader, cfg, writer=writer, tag_prefix="autodiff",
+                train_loader,
+                val_loader,
+                test_loader,
+                cfg,
+                writer=writer,
+                tag_prefix="autodiff",
             )
             bp_metrics = run_bp_training(
                 _build_bp_model(cfg, in_channels, num_classes).to(cfg.device),
-                train_loader, val_loader, test_loader, cfg, writer=writer, tag_prefix="backprop",
+                train_loader,
+                val_loader,
+                test_loader,
+                cfg,
+                writer=writer,
+                tag_prefix="backprop",
             )
             writer.close()
             return {
@@ -158,15 +171,30 @@ def run_experiment_mlp(cfg: ExperimentConfig, run_name: str) -> dict:
         case "all":
             ad_metrics = run_monofwd_training_ad(
                 _build_mono_model(cfg, in_channels, num_classes).to(cfg.device),
-                train_loader, val_loader, test_loader, cfg, writer=writer, tag_prefix="autodiff",
+                train_loader,
+                val_loader,
+                test_loader,
+                cfg,
+                writer=writer,
+                tag_prefix="autodiff",
             )
             dd_metrics = run_monofwd_training_dd(
                 _build_mono_model(cfg, in_channels, num_classes).to(cfg.device),
-                train_loader, val_loader, test_loader, cfg, writer=writer, tag_prefix="dd",
+                train_loader,
+                val_loader,
+                test_loader,
+                cfg,
+                writer=writer,
+                tag_prefix="dd",
             )
             bp_metrics = run_bp_training(
                 _build_bp_model(cfg, in_channels, num_classes).to(cfg.device),
-                train_loader, val_loader, test_loader, cfg, writer=writer, tag_prefix="backprop",
+                train_loader,
+                val_loader,
+                test_loader,
+                cfg,
+                writer=writer,
+                tag_prefix="backprop",
             )
             writer.close()
             return {
@@ -201,9 +229,7 @@ def run_experiment_cnn(cfg: ExperimentConfig, run_name: str) -> dict:
     logger.info(f"Logs saved to: {log_file}")
 
     set_seed(cfg.seed)
-    train_loader, val_loader, test_loader, in_channels, num_classes = build_dataloaders(
-        cfg
-    )
+    train_loader, val_loader, test_loader, in_channels, num_classes = build_dataloaders(cfg)
 
     writer = SummaryWriter(log_dir=f"{cfg.tensorboard_logdir}/{run_name}")
     logger.info(f"TensorBoard logs: {cfg.tensorboard_logdir}/{run_name}")
@@ -233,7 +259,7 @@ def run_experiment_cnn(cfg: ExperimentConfig, run_name: str) -> dict:
                 test_loader,
                 cfg,
                 writer=writer,
-                tag_prefix="dd"
+                tag_prefix="dd",
             )
             writer.close()
             return {
@@ -255,11 +281,21 @@ def run_experiment_cnn(cfg: ExperimentConfig, run_name: str) -> dict:
         case "bp_autodiff":
             ad_metrics = run_monofwd_training_ad(
                 _build_mono_model(cfg, in_channels, num_classes).to(cfg.device),
-                train_loader, val_loader, test_loader, cfg, writer=writer, tag_prefix="autodiff",
+                train_loader,
+                val_loader,
+                test_loader,
+                cfg,
+                writer=writer,
+                tag_prefix="autodiff",
             )
             bp_metrics = run_bp_training(
                 _build_bp_model(cfg, in_channels, num_classes).to(cfg.device),
-                train_loader, val_loader, test_loader, cfg, writer=writer, tag_prefix="backprop",
+                train_loader,
+                val_loader,
+                test_loader,
+                cfg,
+                writer=writer,
+                tag_prefix="backprop",
             )
             writer.close()
             return {
@@ -276,15 +312,30 @@ def run_experiment_cnn(cfg: ExperimentConfig, run_name: str) -> dict:
         case "all":
             ad_metrics = run_monofwd_training_ad(
                 _build_mono_model(cfg, in_channels, num_classes).to(cfg.device),
-                train_loader, val_loader, test_loader, cfg, writer=writer, tag_prefix="autodiff",
+                train_loader,
+                val_loader,
+                test_loader,
+                cfg,
+                writer=writer,
+                tag_prefix="autodiff",
             )
             dd_metrics = run_monofwd_training_dd(
                 _build_mono_model(cfg, in_channels, num_classes).to(cfg.device),
-                train_loader, val_loader, test_loader, cfg, writer=writer, tag_prefix="dd",
+                train_loader,
+                val_loader,
+                test_loader,
+                cfg,
+                writer=writer,
+                tag_prefix="dd",
             )
             bp_metrics = run_bp_training(
                 _build_bp_model(cfg, in_channels, num_classes).to(cfg.device),
-                train_loader, val_loader, test_loader, cfg, writer=writer, tag_prefix="backprop",
+                train_loader,
+                val_loader,
+                test_loader,
+                cfg,
+                writer=writer,
+                tag_prefix="backprop",
             )
             writer.close()
             return {

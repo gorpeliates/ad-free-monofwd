@@ -29,14 +29,14 @@ class MonoFwdConvBlock(nn.Module):
         # Fixed random projection matrices, one per channel: [C, proj_dim, H*W]
         # Registered as a buffer, not trainabke
         #  initialized lazily on first forward pass
-        self.register_buffer('A', None)
+        self.register_buffer("A", None)
 
     def _init_projection(self, spatial_size: int, device: torch.device) -> None:
         # A[c]: [proj_dim, H*W] random projection for channel c
         A = torch.randn(self.out_ch, self.proj_dim, spatial_size, device=device)
         # scale for normalization
         A = A / math.sqrt(spatial_size)
-        self.register_buffer('A', A)
+        self.register_buffer("A", A)
 
     def forward(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         """
@@ -59,8 +59,8 @@ class MonoFwdConvBlock(nn.Module):
         u = a.view(B, C, spatial_size)
 
         # z: [B, C, proj_dim] — channel-wise random projection
-        
-        z = torch.einsum('bcs,cps->bcp', u, self.A)
+
+        z = torch.einsum("bcs,cps->bcp", u, self.A)
 
         # flatten all channel projections -> [B, C*proj_dim]
         z_flat = z.reshape(B, C * self.proj_dim)
@@ -83,17 +83,10 @@ class MonoFwdCNN(nn.Module):
         self.num_classes = num_classes
         dims = [in_ch] + channels
         self.blocks = nn.ModuleList(
-            [
-                MonoFwdConvBlock(
-                    dims[i], dims[i + 1], num_classes, proj_dim=proj_dim
-                )
-                for i in range(len(channels))
-            ]
+            [MonoFwdConvBlock(dims[i], dims[i + 1], num_classes, proj_dim=proj_dim) for i in range(len(channels))]
         )
 
-    def local_losses_logits(
-        self, x: torch.Tensor, y: torch.Tensor
-    ) -> Tuple[List[torch.Tensor], List[torch.Tensor]]:
+    def local_losses_logits(self, x: torch.Tensor, y: torch.Tensor) -> Tuple[List[torch.Tensor], List[torch.Tensor]]:
 
         losses: List[torch.Tensor] = []
         logits: List[torch.Tensor] = []

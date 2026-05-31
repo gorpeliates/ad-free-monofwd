@@ -26,6 +26,9 @@ name = "pytorch-cu130"
 url = "https://download.pytorch.org/whl/cu130"
 explicit = true
 
+[tool.ruff]
+src = ["src"]
+line-length = 120
 
 [tool.uv.sources]
 torch = [
@@ -39,4 +42,9 @@ torchvision = [
 torchaudio = [
     { index = "pytorch-cu130",marker = "sys_platform == 'win32'" },
     { index = "pytorch-cu129",marker = "sys_platform == 'linux'" }
+]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.15.15",
 ]

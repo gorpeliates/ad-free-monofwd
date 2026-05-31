@@ -76,7 +76,7 @@ def train_monofwd_one_epoch_autodiff(
         total_correct_ff / total_seen,
         total_loss_bp / num_batches,
         total_correct_bp / total_seen,
-        [l / num_batches for l in layer_loss_totals],
+        [loss / num_batches for loss in layer_loss_totals],
         [c / total_seen for c in layer_correct_totals],
     )
 
@@ -105,10 +105,22 @@ def run_monofwd_training_ad(
     }
 
     for epoch in range(1, cfg.epochs + 1):
-        train_loss_ff, train_acc_ff, train_loss_bp, train_acc_bp, train_layer_losses, train_layer_accs = train_monofwd_one_epoch_autodiff(
-            model, opts, train_loader, device=cfg.device,
+        (
+            train_loss_ff,
+            train_acc_ff,
+            train_loss_bp,
+            train_acc_bp,
+            train_layer_losses,
+            train_layer_accs,
+        ) = train_monofwd_one_epoch_autodiff(
+            model,
+            opts,
+            train_loader,
+            device=cfg.device,
         )
-        val_loss_ff, val_acc_ff, val_loss_bp, val_acc_bp, val_layer_losses, val_layer_accs = evaluate_monofwd(model, val_loader, device=cfg.device)
+        val_loss_ff, val_acc_ff, val_loss_bp, val_acc_bp, val_layer_losses, val_layer_accs = evaluate_monofwd(
+            model, val_loader, device=cfg.device
+        )
         model.train()
         best_val_acc_ff = max(best_val_acc_ff, val_acc_ff)
         best_val_acc_bp = max(best_val_acc_bp, val_acc_bp)
@@ -145,7 +157,9 @@ def run_monofwd_training_ad(
                 bad_epochs += 1
                 if bad_epochs >= cfg.early_stopping_patience:
                     metrics["early_stopping"]["stopped_epoch"] = epoch
-                    logger.info(f"MonoFwd early stopping at epoch {epoch}; best epoch was {metrics['early_stopping']['best_epoch']}.")
+                    logger.info(
+                        f"MonoFwd early stopping at epoch {epoch}; best epoch was {metrics['early_stopping']['best_epoch']}."
+                    )
                     break
 
     if best_state is not None:

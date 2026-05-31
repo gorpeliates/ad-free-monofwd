@@ -18,9 +18,7 @@ from typing import Optional
 logger = get_logger(__name__)
 
 
-def _get_pre_proj_activation(
-    block: nn.Module, h: torch.Tensor
-) -> tuple[torch.Tensor, torch.Tensor]:
+def _get_pre_proj_activation(block: nn.Module, h: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
     """
     Run a block's feature extraction (conv/linear + norm/bn + activation) without
     the projection M, returning (next_h, pre_proj_a).
@@ -39,7 +37,7 @@ def _get_pre_proj_activation(
         if block.A is None or block.A.shape[-1] != spatial_size:
             block._init_projection(spatial_size, a.device)
         u = a.view(B, C, spatial_size)
-        z = torch.einsum('bcs,cps->bcp', u, block.A)  # [B, C, proj_dim]
+        z = torch.einsum("bcs,cps->bcp", u, block.A)  # [B, C, proj_dim]
         pre_proj_a = z.reshape(B, C * block.proj_dim)  # [B, C*proj_dim]
     elif isinstance(block, MonoFwdLinearBlock):
         pre_proj_a = F.relu(block.linear(h))
@@ -103,10 +101,7 @@ def _get_chunk_indices(
 
     elif isinstance(block, MonoFwdLinearBlock):
         chunk_size = max(1, max_params_per_chunk)
-        return [
-            torch.arange(start, min(start + chunk_size, n_W), device=device)
-            for start in range(0, n_W, chunk_size)
-        ]
+        return [torch.arange(start, min(start + chunk_size, n_W), device=device) for start in range(0, n_W, chunk_size)]
 
     else:
         raise TypeError(f"Unsupported block type: {type(block)}")
@@ -130,10 +125,7 @@ def _get_chunk_row_ranges_M(
         rows_per_chunk = ch_per_chunk * proj_dim
     else:
         rows_per_chunk = max(1, max_params_per_chunk // n_cols)
-    return [
-        (start, min(start + rows_per_chunk, n_rows))
-        for start in range(0, n_rows, rows_per_chunk)
-    ]
+    return [(start, min(start + rows_per_chunk, n_rows)) for start in range(0, n_rows, rows_per_chunk)]
 
 
 @torch.no_grad()
@@ -277,7 +269,7 @@ def train_monofwd_one_epoch_dd(
         total_correct_ff / total_seen,
         total_loss_bp / num_batches,
         total_correct_bp / total_seen,
-        [l / num_batches for l in layer_loss_totals],
+        [loss / num_batches for loss in layer_loss_totals],
         [c / total_seen for c in layer_correct_totals],
     )
 
@@ -337,24 +329,29 @@ def run_monofwd_training_dd(
         w_params = [p for name, p in block.named_parameters() if name != "M"]
         n_W = sum(p.numel() for p in w_params)
         n_M = block.M.numel()
-        chunks = _get_chunk_indices(
-            block, w_params, n_W, cfg.dd_max_params_per_chunk, cfg.device
-        )
+        chunks = _get_chunk_indices(block, w_params, n_W, cfg.dd_max_params_per_chunk, cfg.device)
         m_ranges = _get_chunk_row_ranges_M(block, cfg.dd_max_params_per_chunk)
         chunk_indices_W.append(chunks)
         chunk_row_ranges_M.append(m_ranges)
         kind = "conv/bn" if isinstance(block, MonoFwdConvBlock) else "linear"
-        logger.info(f"Block {i}: {n_W} {kind} params ({len(chunks)} chunks) + {n_M} projection (M) params ({len(m_ranges)} chunks) = {n_W + n_M} total trainable")
+        logger.info(
+            f"Block {i}: {n_W} {kind} params ({len(chunks)} chunks) + {n_M} projection (M) params ({len(m_ranges)} chunks) = {n_W + n_M} total trainable"
+        )
 
     for epoch in range(1, cfg.epochs + 1):
-        train_loss_ff, train_acc_ff, train_loss_bp, train_acc_bp, train_layer_losses, train_layer_accs = (
-            train_monofwd_one_epoch_dd(
-                model,
-                train_loader,
-                cfg,
-                chunk_indices_W,
-                chunk_row_ranges_M,
-            )
+        (
+            train_loss_ff,
+            train_acc_ff,
+            train_loss_bp,
+            train_acc_bp,
+            train_layer_losses,
+            train_layer_accs,
+        ) = train_monofwd_one_epoch_dd(
+            model,
+            train_loader,
+            cfg,
+            chunk_indices_W,
+            chunk_row_ranges_M,
         )
         val_loss_ff, val_acc_ff, val_loss_bp, val_acc_bp, val_layer_losses, val_layer_accs = evaluate_monofwd(
             model, val_loader, device=cfg.device
@@ -387,9 +384,7 @@ def run_monofwd_training_dd(
                 writer.add_scalar(f"{p}layer_acc/layer_{i}/val", layer_acc, epoch)
 
         if cfg.early_stopping:
-            if early_stopping_improved(
-                best_val_loss, val_loss_ff, cfg.early_stopping_min_delta
-            ):
+            if early_stopping_improved(best_val_loss, val_loss_ff, cfg.early_stopping_min_delta):
                 best_val_loss = val_loss_ff
                 bad_epochs = 0
                 best_state = deepcopy(model.state_dict())
@@ -406,9 +401,7 @@ def run_monofwd_training_dd(
     if best_state is not None:
         model.load_state_dict(best_state)
 
-    _, test_acc_ff, _, test_acc_bp, _, _ = evaluate_monofwd(
-        model, test_loader, device=cfg.device
-    )
+    _, test_acc_ff, _, test_acc_bp, _, _ = evaluate_monofwd(model, test_loader, device=cfg.device)
     metrics["mono_ff"]["test_acc"] = test_acc_ff
     metrics["mono_bp"]["test_acc"] = test_acc_bp
     return metrics

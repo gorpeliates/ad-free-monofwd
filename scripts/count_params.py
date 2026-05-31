@@ -54,9 +54,7 @@ def main():
     for ds, cfg in DATASETS.items():
         models = {
             "BPMLP": BPMLP(cfg["mlp_in"], cfg["mlp_hidden"], cfg["num_classes"]),
-            "MonoFwdMLP": MonoFwdMLP(
-                cfg["mlp_in"], cfg["mlp_hidden"], cfg["num_classes"]
-            ),
+            "MonoFwdMLP": MonoFwdMLP(cfg["mlp_in"], cfg["mlp_hidden"], cfg["num_classes"]),
             "BPCNN": BPCNN(cfg["cnn_in_ch"], cfg["cnn_channels"], cfg["num_classes"]),
             "MonoFwdCNN": MonoFwdCNN(
                 cfg["cnn_in_ch"],

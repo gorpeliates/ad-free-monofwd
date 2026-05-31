@@ -25,16 +25,11 @@ class MonoFwdMLP(nn.Module):
         super().__init__()
         dims = [input_dim] + hidden_dims
         self.blocks = nn.ModuleList(
-            [
-                MonoFwdLinearBlock(dims[i], dims[i + 1], num_classes)
-                for i in range(len(hidden_dims))
-            ]
+            [MonoFwdLinearBlock(dims[i], dims[i + 1], num_classes) for i in range(len(hidden_dims))]
         )
         self.num_classes = num_classes
 
-    def local_losses_logits(
-        self, x: torch.Tensor, y: torch.Tensor
-    ) -> Tuple[List[torch.Tensor], List[torch.Tensor]]:
+    def local_losses_logits(self, x: torch.Tensor, y: torch.Tensor) -> Tuple[List[torch.Tensor], List[torch.Tensor]]:
         """
         Returns the local losses for each block.
         The loss for each block is the cross-entropy loss between the goodness scores and the true labels,

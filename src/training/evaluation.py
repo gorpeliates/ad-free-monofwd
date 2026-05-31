@@ -55,7 +55,7 @@ def evaluate_monofwd(
         total_correct_ff / total_seen,
         total_loss_bp / num_batches,
         total_correct_bp / total_seen,
-        [l / num_batches for l in layer_loss_totals],
+        [loss / num_batches for loss in layer_loss_totals],
         [c / total_seen for c in layer_correct_totals],
     )
 
