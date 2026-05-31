@@ -1,0 +1,35 @@
+#!/bin/bash
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+SEED=${1:-42}
+
+PROJ_DIMS=(8 16 32 64)
+TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
+RUNDIR="$PROJECT_ROOT/runs/experiment_proj_${TIMESTAMP}"
+
+mkdir -p "$RUNDIR/logs"
+
+echo "Random projection experiments for CNN on fashionmnist, seed: $SEED"
+
+echo ""
+echo "=== Random projection dimensions: ${PROJ_DIMS[*]} ==="
+for proj_dim in "${PROJ_DIMS[@]}"; do
+    echo "  Submitting dd: model=cnn dataset=fashionmnist cnn_proj_dim=$proj_dim"
+    sbatch --job-name="proj_cnn_d${proj_dim}" \
+           --output="$RUNDIR/logs/proj_cnn_d${proj_dim}_%j.out" \
+           "$PROJECT_ROOT/scripts/train.slurm" \
+           --dataset "fashionmnist" \
+           --model "cnn" \
+           --epochs 200 \
+           --no-early-stopping \
+           --train_method dd \
+           --dd_num_perturbations 4 \
+           --cnn_proj_dim $proj_dim \
+           --logdir "$RUNDIR" \
+           --seed $SEED
+done
+
+echo ""
+echo "All jobs submitted! Total: ${#PROJ_DIMS[@]} jobs"
