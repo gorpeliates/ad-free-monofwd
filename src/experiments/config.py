@@ -38,4 +38,7 @@ class ExperimentConfig:
         else:
             parts = f"all_{base}"
 
+        if self.model == "cnn":
+            parts = f"{parts}_proj{self.cnn_proj_dim}"
+
         return f"{parts}_{timestamp}_seed{self.seed}"
