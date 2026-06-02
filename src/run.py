@@ -61,8 +61,8 @@ def parse_args() -> list[ExperimentConfig]:
     parser.add_argument(
         "--cnn_proj_dim",
         type=int,
-        default=16,
-        help="FFZero channel-wise random projection dimension for CNN (default: 16)",
+        default=2048,
+        help="Random projection target dimension for CNN (default: 2048)",
     )
     parser.add_argument(
         "--logdir",

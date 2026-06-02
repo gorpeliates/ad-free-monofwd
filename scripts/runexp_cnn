@@ -1,0 +1,36 @@
+#!/bin/bash
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+SEED=${1:-123123}
+TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
+RUNDIR="$PROJECT_ROOT/runs/experiment_cnn_${TIMESTAMP}"
+
+mkdir -p "$RUNDIR/logs"
+
+echo "Submitting CNN jobs for seed: $SEED"
+echo "Run directory: $RUNDIR"
+
+echo ""
+echo "=== DD (perturbation) jobs ==="
+for dataset in mnist fashionmnist cifar10 cifar100; do
+    sbatch --job-name="dd_cnn_${dataset}" \
+           --output="$RUNDIR/logs/dd_cnn_${dataset}_%j.out" \
+           "$PROJECT_ROOT/scripts/train.slurm" \
+           --dataset "$dataset" --model cnn --epochs 200 --no-early-stopping \
+           --train_method dd --dd_num_perturbations 4 --logdir "$RUNDIR" --seed $SEED
+done
+
+echo ""
+echo "=== BP + autodiff jobs ==="
+for dataset in mnist fashionmnist cifar10 cifar100; do
+    sbatch --job-name="bpad_cnn_${dataset}" \
+           --output="$RUNDIR/logs/bpad_cnn_${dataset}_%j.out" \
+           "$PROJECT_ROOT/scripts/train.slurm" \
+           --dataset "$dataset" --model cnn --epochs 200 --no-early-stopping \
+           --train_method bp_autodiff --logdir "$RUNDIR" --seed $SEED
+done
+
+echo ""
+echo "All CNN jobs submitted! Total: 8 jobs"

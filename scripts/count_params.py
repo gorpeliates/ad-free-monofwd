@@ -39,7 +39,7 @@ DATASETS = {
     },
 }
 
-CNN_PROJ_DIM = 16
+CNN_PROJ_DIM = 2048
 
 
 def count_params(model):
