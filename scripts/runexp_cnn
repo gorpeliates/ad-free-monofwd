@@ -4,33 +4,87 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 SEED=${1:-123123}
-TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
-RUNDIR="$PROJECT_ROOT/runs/experiment_cnn_${TIMESTAMP}"
 
-mkdir -p "$RUNDIR/logs"
+ALL_DATASETS=("mnist" "fashionmnist" "cifar10" "cifar100")
+SMALL_DATASETS=("mnist" "fashionmnist")
+CIFAR_DATASETS=("cifar10" "cifar100")
+TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
+RUNDIR_PERTURB="$PROJECT_ROOT/runs/experiment_cnn_perturb_${TIMESTAMP}"
+RUNDIR_ALL="$PROJECT_ROOT/runs/experiment_cnn_all_${TIMESTAMP}"
+
+mkdir -p "$RUNDIR_PERTURB/logs"
+mkdir -p "$RUNDIR_ALL/logs"
 
 echo "Submitting CNN jobs for seed: $SEED"
-echo "Run directory: $RUNDIR"
+echo "Perturbation run directory: $RUNDIR_PERTURB"
+echo "All-datasets run directory: $RUNDIR_ALL"
 
 echo ""
-echo "=== DD (perturbation) jobs ==="
-for dataset in mnist fashionmnist cifar10 cifar100; do
+echo "=== Perturbation experiments (fashionmnist, P=1,2,4,8) ==="
+for P in 1 2 4 8; do
+    echo "  Submitting dd: model=cnn dataset=fashionmnist P=$P"
+    sbatch --job-name="Pexp_cnn_P${P}" \
+           --output="$RUNDIR_PERTURB/logs/Pexp_cnn_P${P}_%j.out" \
+           "$PROJECT_ROOT/scripts/train.slurm" \
+           --dataset "fashionmnist" \
+           --model cnn \
+           --epochs 200 \
+           --no-early-stopping \
+           --train_method dd \
+           --dd_num_perturbations $P \
+           --logdir "$RUNDIR_PERTURB" \
+           --seed $SEED
+done
+
+echo ""
+echo "=== DD mnist/fashionmnist ==="
+for dataset in "${SMALL_DATASETS[@]}"; do
+    echo "  Submitting dd: model=cnn dataset=$dataset P=4"
     sbatch --job-name="dd_cnn_${dataset}" \
            --output="$RUNDIR/logs/dd_cnn_${dataset}_%j.out" \
            "$PROJECT_ROOT/scripts/train.slurm" \
-           --dataset "$dataset" --model cnn --epochs 200 --no-early-stopping \
-           --train_method dd --dd_num_perturbations 4 --logdir "$RUNDIR" --seed $SEED
+           --dataset "$dataset" \
+           --model cnn \
+           --epochs 200 \
+           --no-early-stopping \
+           --train_method dd \
+           --dd_num_perturbations 4 \
+           --logdir "$RUNDIR_ALL" \
+           --seed $SEED
 done
 
 echo ""
-echo "=== BP + autodiff jobs ==="
-for dataset in mnist fashionmnist cifar10 cifar100; do
-    sbatch --job-name="bpad_cnn_${dataset}" \
-           --output="$RUNDIR/logs/bpad_cnn_${dataset}_%j.out" \
+echo "=== DD cifar10/cifar100 ==="
+for dataset in "${CIFAR_DATASETS[@]}"; do
+    echo "  Submitting dd: model=cnn dataset=$dataset P=4"
+    sbatch --job-name="dd_cnn_${dataset}" \
+           --output="$RUNDIR_ALL/logs/dd_cnn_${dataset}_%j.out" \
            "$PROJECT_ROOT/scripts/train.slurm" \
-           --dataset "$dataset" --model cnn --epochs 200 --no-early-stopping \
-           --train_method bp_autodiff --logdir "$RUNDIR" --seed $SEED
+           --dataset "$dataset" \
+           --model cnn \
+           --epochs 200 \
+           --no-early-stopping \
+           --train_method dd \
+           --dd_num_perturbations 4 \
+           --logdir "$RUNDIR_ALL" \
+           --seed $SEED
 done
 
 echo ""
-echo "All CNN jobs submitted! Total: 8 jobs"
+echo "=== BP + autodiff (all datasets) ==="
+for dataset in "${ALL_DATASETS[@]}"; do
+    echo "  Submitting bp_autodiff: model=cnn dataset=$dataset"
+    sbatch --job-name="bpad_cnn_${dataset}" \
+           --output="$RUNDIR_ALL/logs/bpad_cnn_${dataset}_%j.out" \
+           "$PROJECT_ROOT/scripts/train.slurm" \
+           --dataset "$dataset" \
+           --model cnn \
+           --epochs 200 \
+           --no-early-stopping \
+           --train_method bp_autodiff \
+           --logdir "$RUNDIR_ALL" \
+           --seed $SEED
+done
+
+echo ""
+echo "All CNN jobs submitted! Total: $((4 + ${#SMALL_DATASETS[@]} + ${#CIFAR_DATASETS[@]} + ${#ALL_DATASETS[@]})) jobs"
