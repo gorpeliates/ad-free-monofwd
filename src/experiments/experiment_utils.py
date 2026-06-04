@@ -137,6 +137,7 @@ def run_experiment_mlp(cfg: ExperimentConfig, run_name: str) -> dict:
                 test_loader,
                 cfg,
                 writer=writer,
+                tag_prefix="backprop",
             )
             writer.close()
             return {"bp": metrics["bp"], "early_stopping": metrics["early_stopping"]}
