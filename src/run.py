@@ -56,7 +56,7 @@ def parse_args() -> list[ExperimentConfig]:
         type=str,
         default="sgd",
         choices=["adam", "sgd"],
-        help="Optimizer for AD/BP baselines (default: adam). DD always uses raw SGD with lr.",
+        help="Optimizer for AD/BP baselines (default: sgd).",
     )
     parser.add_argument(
         "--cnn_proj_dim",
