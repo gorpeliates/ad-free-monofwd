@@ -11,7 +11,7 @@ class MonoFwdConvBlock(nn.Module):
         in_ch: int,
         out_ch: int,
         num_classes: int,
-        proj_dim: int = 2048,
+        proj_dim: int = 16,
     ):
         super().__init__()
 
@@ -22,19 +22,20 @@ class MonoFwdConvBlock(nn.Module):
         self.proj_dim = proj_dim
         self.num_classes = num_classes
 
-        # Trainable projection matrix: proj_dim -> num_classes
-        self.M = nn.Parameter(torch.empty(proj_dim, num_classes))
+        # Trainable prototype matrix: [out_ch * proj_dim] -> num_classes
+        self.M = nn.Parameter(torch.empty(out_ch * proj_dim, num_classes))
         nn.init.kaiming_uniform_(self.M, a=math.sqrt(5))
 
-        # Single fixed random projection matrix: [proj_dim, C*H*W]
-        # Registered as a buffer, not trainable; initialized lazily on first forward pass
+        # Fixed random projection matrices, one per channel: [C, proj_dim, H*W]
+        # Registered as a buffer, not trainabke
+        #  initialized lazily on first forward pass
         self.register_buffer("A", None)
 
     def _init_projection(self, spatial_size: int, device: torch.device) -> None:
-        # A: [proj_dim, C*H*W] — single matrix projecting the full flattened feature map
-        # Entries ~ N(0, 1/proj_dim) following sklearn's GaussianRandomProjection convention
-        A = torch.randn(self.proj_dim, self.out_ch * spatial_size, device=device)
-        A = A / math.sqrt(self.proj_dim)
+        # A[c]: [proj_dim, H*W] random projection for channel c
+        A = torch.randn(self.out_ch, self.proj_dim, spatial_size, device=device)
+        # scale for normalization
+        A = A / math.sqrt(spatial_size)
         self.register_buffer("A", A)
 
     def forward(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
@@ -51,17 +52,21 @@ class MonoFwdConvBlock(nn.Module):
         spatial_size = H * W
 
         # lazy init check
-        if self.A is None or self.A.shape[-1] != C * spatial_size:
+        if self.A is None or self.A.shape[-1] != spatial_size:
             self._init_projection(spatial_size, a.device)
 
-        # u: [B, C*H*W] — flatten full feature map
-        u = a.reshape(B, C * spatial_size)
+        # u: [B, C, H*W] — flatten spatial dims per channel
+        u = a.view(B, C, spatial_size)
 
-        # z: [B, proj_dim] — single random projection
-        z = u @ self.A.t()
+        # z: [B, C, proj_dim] — channel-wise random projection
+
+        z = torch.einsum("bcs,cps->bcp", u, self.A)
+
+        # flatten all channel projections -> [B, C*proj_dim]
+        z_flat = z.reshape(B, C * self.proj_dim)
 
         # g: [B, num_classes]
-        g = z @ self.M
+        g = z_flat @ self.M
 
         return next_h, g
 
@@ -72,7 +77,7 @@ class MonoFwdCNN(nn.Module):
         in_ch: int,
         channels: List[int],
         num_classes: int,
-        proj_dim: int = 2048,
+        proj_dim: int = 16,
     ):
         super().__init__()
         self.num_classes = num_classes

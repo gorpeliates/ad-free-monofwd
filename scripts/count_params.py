@@ -43,7 +43,7 @@ DATASETS = {
     },
 }
 
-CNN_PROJ_DIM = 2048
+CNN_PROJ_DIM = 16
 
 
 def count_params(model):
@@ -59,7 +59,7 @@ def main():
         models = {
             "BPMLP": BPMLP(cfg["mlp_in"], cfg["mlp_hidden"], cfg["num_classes"]),
             "MonoFwdMLP": MonoFwdMLP(cfg["mlp_in"], cfg["mlp_hidden"], cfg["num_classes"]),
-            "BPCNN": BPCNN(cfg["cnn_in_ch"], cfg["cnn_channels"], cfg["num_classes"], cfg["cnn_input_size"]),
+            "BPCNN": BPCNN(cfg["cnn_in_ch"], cfg["cnn_channels"], cfg["num_classes"], input_size=cfg["cnn_input_size"]),
             "MonoFwdCNN": MonoFwdCNN(
                 cfg["cnn_in_ch"],
                 cfg["cnn_channels"],

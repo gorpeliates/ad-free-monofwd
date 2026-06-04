@@ -24,7 +24,7 @@ class ExperimentConfig:
     )
     tensorboard_logdir: str = "runs"
     optimizer: str = "sgd"  # adam | sgd  (applies to AD/BP only)
-    cnn_proj_dim: int = 2048  # random projection target dimension
+    cnn_proj_dim: int = 16  # FFZero channel-wise random projection dimension
 
     def run_name(self, timestamp: str) -> str:
         base = f"{self.model}_{self.dataset}"

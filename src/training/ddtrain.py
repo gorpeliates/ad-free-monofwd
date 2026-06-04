@@ -34,10 +34,11 @@ def _get_pre_proj_activation(block: nn.Module, h: torch.Tensor) -> tuple[torch.T
         next_h = F.max_pool2d(a, kernel_size=2)
         B, C, H, W = a.shape
         spatial_size = H * W
-        if block.A is None or block.A.shape[-1] != C * spatial_size:
+        if block.A is None or block.A.shape[-1] != spatial_size:
             block._init_projection(spatial_size, a.device)
-        u = a.reshape(B, C * spatial_size)
-        pre_proj_a = u @ block.A.t()  # [B, proj_dim]
+        u = a.view(B, C, spatial_size)
+        z = torch.einsum("bcs,cps->bcp", u, block.A)  # [B, C, proj_dim]
+        pre_proj_a = z.reshape(B, C * block.proj_dim)  # [B, C*proj_dim]
     elif isinstance(block, MonoFwdLinearBlock):
         pre_proj_a = F.relu(block.linear(h))
         next_h = pre_proj_a
@@ -113,10 +114,17 @@ def _get_chunk_row_ranges_M(
     """
     Row-based chunks for M, analogous to channel-based chunks for conv weights.
 
-    Simple row chunks sized by max_params_per_chunk.
+    CNN  -> proj_dim rows = one channel's projection; pack as many channels as
+            fit within max_params_per_chunk (each row has num_classes params).
+    MLP  -> simple row chunks sized by max_params_per_chunk.
     """
     n_rows, n_cols = block.M.shape
-    rows_per_chunk = max(1, max_params_per_chunk // n_cols)
+    if isinstance(block, MonoFwdConvBlock):
+        proj_dim = block.proj_dim
+        ch_per_chunk = max(1, max_params_per_chunk // (proj_dim * n_cols))
+        rows_per_chunk = ch_per_chunk * proj_dim
+    else:
+        rows_per_chunk = max(1, max_params_per_chunk // n_cols)
     return [(start, min(start + rows_per_chunk, n_rows)) for start in range(0, n_rows, rows_per_chunk)]
 
 
