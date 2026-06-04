@@ -14,6 +14,7 @@ DATASETS = {
         "mlp_hidden": [50] * 2,
         "cnn_in_ch": 1,
         "cnn_channels": [32, 32],
+        "cnn_input_size": 28,
         "num_classes": 10,
     },
     "fashionmnist": {
@@ -21,6 +22,7 @@ DATASETS = {
         "mlp_hidden": [100] * 3,
         "cnn_in_ch": 1,
         "cnn_channels": [64, 64],
+        "cnn_input_size": 28,
         "num_classes": 10,
     },
     "cifar10": {
@@ -28,6 +30,7 @@ DATASETS = {
         "mlp_hidden": [200] * 4,
         "cnn_in_ch": 3,
         "cnn_channels": [128, 128],
+        "cnn_input_size": 32,
         "num_classes": 10,
     },
     "cifar100": {
@@ -35,6 +38,7 @@ DATASETS = {
         "mlp_hidden": [200] * 4,
         "cnn_in_ch": 3,
         "cnn_channels": [128, 128],
+        "cnn_input_size": 32,
         "num_classes": 100,
     },
 }
@@ -55,7 +59,7 @@ def main():
         models = {
             "BPMLP": BPMLP(cfg["mlp_in"], cfg["mlp_hidden"], cfg["num_classes"]),
             "MonoFwdMLP": MonoFwdMLP(cfg["mlp_in"], cfg["mlp_hidden"], cfg["num_classes"]),
-            "BPCNN": BPCNN(cfg["cnn_in_ch"], cfg["cnn_channels"], cfg["num_classes"]),
+            "BPCNN": BPCNN(cfg["cnn_in_ch"], cfg["cnn_channels"], cfg["num_classes"], cfg["cnn_input_size"]),
             "MonoFwdCNN": MonoFwdCNN(
                 cfg["cnn_in_ch"],
                 cfg["cnn_channels"],

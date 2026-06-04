@@ -28,10 +28,10 @@ _MLP_ARCH = {
 }
 
 _CNN_ARCH = {
-    "mnist": [32, 32],
-    "fashionmnist": [64, 64],
-    "cifar10": [128, 128],
-    "cifar100": [128, 128],
+    "mnist": (28, [32, 32]),
+    "fashionmnist": (28, [64, 64]),
+    "cifar10": (32, [128, 128]),
+    "cifar100": (32, [128, 128]),
 }
 
 
@@ -41,9 +41,10 @@ def _build_mono_model(cfg: ExperimentConfig, in_channels: int, num_classes: int)
         input_dim, hidden_dims = _MLP_ARCH[ds]
         return MonoFwdMLP(input_dim=input_dim, hidden_dims=hidden_dims, num_classes=num_classes)
     if cfg.model == "cnn":
+        _, channels = _CNN_ARCH[ds]
         return MonoFwdCNN(
             in_ch=in_channels,
-            channels=_CNN_ARCH[ds],
+            channels=channels,
             num_classes=num_classes,
             proj_dim=cfg.cnn_proj_dim,
         )
@@ -56,10 +57,12 @@ def _build_bp_model(cfg: ExperimentConfig, in_channels: int, num_classes: int) -
         input_dim, hidden_dims = _MLP_ARCH[ds]
         return BPMLP(input_dim=input_dim, hidden_dims=hidden_dims, num_classes=num_classes)
     if cfg.model == "cnn":
+        input_size, channels = _CNN_ARCH[ds]
         return BPCNN(
             in_ch=in_channels,
-            channels=_CNN_ARCH[ds],
+            channels=channels,
             num_classes=num_classes,
+            input_size=input_size,
         )
     raise ValueError(f"Unknown model type: {cfg.model}")
 
