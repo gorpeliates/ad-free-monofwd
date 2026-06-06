@@ -1,0 +1,23 @@
+{
+  "autodiff": {
+    "mono_ff": {
+      "test_acc": 0.8623
+    },
+    "mono_bp": {
+      "test_acc": 0.8606
+    },
+    "early_stopping": {
+      "best_epoch": 0,
+      "stopped_epoch": 0
+    }
+  },
+  "bp": {
+    "bp": {
+      "test_acc": 0.8801
+    },
+    "early_stopping": {
+      "best_epoch": 0,
+      "stopped_epoch": 0
+    }
+  }
+}

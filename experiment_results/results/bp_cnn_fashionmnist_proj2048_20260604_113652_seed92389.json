@@ -1,0 +1,9 @@
+{
+  "bp": {
+    "test_acc": 0.9114
+  },
+  "early_stopping": {
+    "best_epoch": 0,
+    "stopped_epoch": 0
+  }
+}

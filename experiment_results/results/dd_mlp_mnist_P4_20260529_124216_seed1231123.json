@@ -1,0 +1,12 @@
+{
+  "mono_ff": {
+    "test_acc": 0.9333
+  },
+  "mono_bp": {
+    "test_acc": 0.9311
+  },
+  "early_stopping": {
+    "best_epoch": 0,
+    "stopped_epoch": 0
+  }
+}
