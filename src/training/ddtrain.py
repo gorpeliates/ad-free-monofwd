@@ -195,12 +195,12 @@ def train_monofwd_one_epoch_dd(
                     # +eps perturbation
                     _apply_perturbation(w_params, delta)
                     _, g_plus = block.forward(h)
-                    L_plus = F.cross_entropy(g_plus, y).item()
+                    L_plus = F.cross_entropy(g_plus, y)
 
                     # −2eps (net −eps from baseline)
                     _apply_perturbation(w_params, -2.0 * delta)
                     _, g_minus = block.forward(h)
-                    L_minus = F.cross_entropy(g_minus, y).item()
+                    L_minus = F.cross_entropy(g_minus, y)
 
                     # restore weights and BN stats after each pair
                     _apply_perturbation(w_params, delta)
