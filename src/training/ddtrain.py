@@ -204,7 +204,7 @@ def train_monofwd_one_epoch_dd(
 
                     # restore weights and BN stats after each pair
                     _apply_perturbation(w_params, delta)
-                    _restore_bn_state(block, bn_state)
+                    _restore_bn_state(bn_state)
 
                     dd = (L_plus - L_minus) / (2.0 * eps)
                     grad_acc_chunk += dd * v_hat
@@ -283,21 +283,20 @@ def _apply_perturbation(params: list[nn.Parameter], flat_delta: torch.Tensor) ->
         idx += n
 
 
-def _save_bn_state(block: nn.Module) -> dict:
+def _save_bn_state(block: nn.Module) -> list[tuple[nn.Module, torch.Tensor, torch.Tensor]]:
     """Snapshot running_mean/running_var of all BN layers in block."""
-    state = {}
-    for name, m in block.named_modules():
-        if isinstance(m, (nn.BatchNorm1d, nn.BatchNorm2d)):
-            state[name] = (m.running_mean.clone(), m.running_var.clone())
-    return state
+    return [
+        (m, m.running_mean.clone(), m.running_var.clone())
+        for _, m in block.named_modules()
+        if isinstance(m, (nn.BatchNorm1d, nn.BatchNorm2d))
+    ]
 
 
-def _restore_bn_state(block: nn.Module, state: dict) -> None:
+def _restore_bn_state(state: list[tuple[nn.Module, torch.Tensor, torch.Tensor]]) -> None:
     """Restore running_mean/running_var saved by _save_bn_state."""
-    for name, m in block.named_modules():
-        if isinstance(m, (nn.BatchNorm1d, nn.BatchNorm2d)) and name in state:
-            m.running_mean.copy_(state[name][0])
-            m.running_var.copy_(state[name][1])
+    for m, mean, var in state:
+        m.running_mean.copy_(mean)
+        m.running_var.copy_(var)
 
 
 def run_monofwd_training_dd(
