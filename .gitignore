@@ -11,3 +11,4 @@ runs/
 notes.txt
 old-runs/
 *.svg
+/figures

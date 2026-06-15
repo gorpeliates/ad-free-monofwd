@@ -1,0 +1,39 @@
+#!/bin/bash
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+
+RUNS_DIR="$PROJECT_ROOT/runs"
+RESULTS_DIR="$PROJECT_ROOT/results"
+DEST_DIR="$PROJECT_ROOT/experiment_results"
+DEST_RESULTS_DIR="$DEST_DIR/results"
+
+mkdir -p "$DEST_RESULTS_DIR"
+
+for exp_dir in "$RUNS_DIR"/*/; do
+    exp_name="$(basename "$exp_dir")"
+    dest_exp="$DEST_DIR/$exp_name"
+
+    if [[ -d "$dest_exp" ]]; then
+        echo "Skipping $exp_name (already in experiment_results)"
+        continue
+    fi
+
+    echo "Copying $exp_name ..."
+    cp -r "$exp_dir" "$dest_exp"
+
+    for run_dir in "$exp_dir"*/; do
+        run_name="$(basename "$run_dir")"
+        [[ "$run_name" == "logs" ]] && continue
+
+        src_json="$RESULTS_DIR/${run_name}.json"
+        if [[ -f "$src_json" ]]; then
+            cp "$src_json" "$DEST_RESULTS_DIR/"
+            echo "  Copied results/${run_name}.json"
+        else
+            echo "  WARNING: no result JSON found for $run_name"
+        fi
+    done
+done
+
+echo "Done."
