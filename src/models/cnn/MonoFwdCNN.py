@@ -104,7 +104,7 @@ class MonoFwdCNN(nn.Module):
     @torch.no_grad()
     def predict_logits(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         """
-        FF mode sums goodness from all blocks; BP mode uses the last block.
+        cumulative mode sums goodness from all blocks; final-layer mode uses the last block.
         """
         h = x
         all_goodness = []

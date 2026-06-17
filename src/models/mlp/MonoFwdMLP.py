@@ -65,8 +65,8 @@ class MonoFwdMLP(nn.Module):
     def predict_logits(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Predicts the logits for the input x using either feedforward (ff) or backpropagation (bp) mode.
-        FF mode -> sums the goodness scores from all blocks to make a prediction.
-        BP mode -> uses the goodness scores from the last block to make a prediction.
+        cumulative mode -> sums the goodness scores from all blocks to make a prediction.
+        final-layer mode -> uses the goodness scores from the last block to make a prediction.
         Returns
             a tuple of FF style prediction and BP style prediction, where each is a tensor of shape (batch_size, num_classes)
         """
