@@ -1,6 +1,6 @@
 # MF+DD: Mono-Forward with Directional Derivatives
 
-Code for my bachelor thesis *"Adapting Mono-Forward with Zeroth-Order Gradient Estimation for Automatic Differentiation-Free Training"*.
+This code is the implementation of my bachelor thesis I submitted to Delft University of Technology, *"Adapting Mono-Forward with Zeroth-Order Gradient Estimation for Automatic Differentiation-Free Training"*, as part of the CSE3000 Research Project Course.
 
 This repository implements **MF+DD**, which replaces automatic differentiation (AD) in the [Mono-Forward](https://arxiv.org/abs/2501.09238) local learning algorithm with zeroth-order gradient estimation via directional derivatives. The result is a training method free of both global backpropagation and automatic differentiation: each layer is trained independently using only two forward evaluations of its local cross-entropy loss per perturbation direction.
 
